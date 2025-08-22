@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Dad AI — Play • Learn • Ask</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;700&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
+
+<!-- pdf.js for PDF parsing -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script> if (window.pdfjsLib) { pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"; } </script>
+
+<!-- mammoth for DOCX -> HTML (then to text) -->
+<script src="https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"></script>
+
+<!-- epub.js for EPUB parsing -->
+<script src="https://cdn.jsdelivr.net/npm/epubjs@0.3.93/dist/epub.min.js"></script>
+
+<style>
+  :root{ --bg1:#0f172a; --bg2:#1d1452; --card:rgba(255,255,255,.14); --accent:#ffd54a; }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; font-family:Inter,system-ui; color:#fff;
+    background:
+      radial-gradient(1200px 800px at 20% -10%, #4f46e5, transparent 60%),
+      radial-gradient(800px 600px at 120% 0%, #06b6d4, transparent 55%),
+      linear-gradient(135deg,var(--bg1),var(--bg2));
+    overflow:hidden;
+  }
+
+  .blob{position:fixed;border-radius:50%;filter:blur(40px);opacity:.35;pointer-events:none;mix-blend-mode:screen}
+  .b1{width:520px;height:520px;background:#8b5cf6;left:-120px;top:-160px;animation:float 12s ease-in-out infinite}
+  .b2{width:420px;height:420px;background:#22d3ee;right:-120px;top:40px;animation:float 14s ease-in-out infinite reverse}
+  .b3{width:500px;height:500px;background:#f472b6;left:30%;bottom:-220px;animation:float 16s ease-in-out infinite}
+  @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-30px)}}
+
+  .shell{position:relative;max-width:1120px;height:100%;margin:0 auto;display:grid;grid-template-rows:auto 1fr auto;gap:10px;padding:14px}
+  .glass{background:var(--card);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.25);border-radius:20px;box-shadow:0 18px 40px rgba(0,0,0,.25)}
+  .card{background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.2);border-radius:18px;box-shadow:0 12px 24px rgba(0,0,0,.18)}
+  .floaty{animation:floaty 6s ease-in-out infinite}
+  @keyframes floaty{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+
+  .btn{transition:.18s transform,.18s box-shadow}
+  .btn:hover{transform:translateY(-2px)} .btn:active{transform:translateY(0)}
+  .btn-prim{background:var(--accent);color:#222;font-weight:800}
+  .btn-sec{background:rgba(255,255,255,.9);color:#222}
+
+  #catWrap{will-change:transform;transition:transform .02s linear;transform:translate3d(0,0,0);filter:drop-shadow(0 10px 30px rgba(0,0,0,.35))}
+  .blink{animation:blink 4s infinite}
+  @keyframes blink{0%,97%,100%{transform:scaleY(1)}98%{transform:scaleY(.12)}}
+  .tag{padding:.25rem .6rem;border-radius:999px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.25);font-size:.8rem}
+
+  .bubble{position:relative;background:#fff;color:#1f2937;border-radius:16px;padding:1.1rem 1.3rem}
+  .bubble:after{content:"";position:absolute;left:46%;bottom:-16px;border:10px solid transparent;border-top-color:#fff}
+  #answer-text[dir="rtl"]{ text-align:right }
+  #ctxSnippets [dir="rtl"]{ text-align:right }
+
+  .loader{border:6px solid #e5e7eb;border-top:6px solid #f59e0b;width:56px;height:56px;border-radius:50%;animation:spin 1s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  .ring{outline:none;border:1px solid transparent}
+  .ring:focus{border-color:#ffe082;box-shadow:0 0 0 4px rgba(255,212,74,.25)}
+
+  .sr-only{position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden}
+</style>
+</head>
+<body>
+<div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div>
+
+<div class="shell">
+  <header class="glass px-5 py-3 flex items-center justify-between">
+    <div class="flex items-center gap-4">
+      <div id="catWrap" aria-label="Dad AI cat">
+        <svg id="cat" width="118" height="118" viewBox="0 0 120 120">
+          <path d="M25 35 L45 15 L48 40 Z" fill="#3b3f67"/>
+          <path d="M95 35 L75 15 L72 40 Z" fill="#3b3f67"/>
+          <circle cx="60" cy="55" r="32" fill="#2f3450"/>
+          <ellipse cx="60" cy="62" rx="24" ry="16" fill="#3a3f61"/>
+          <g id="eyes">
+            <circle cx="48" cy="52" r="7.5" fill="#ffd54a" class="blink"/>
+            <circle cx="72" cy="52" r="7.5" fill="#ffd54a" class="blink"/>
+            <circle id="pL" cx="48" cy="52" r="3" fill="#0f1228"/>
+            <circle id="pR" cx="72" cy="52" r="3" fill="#0f1228"/>
+          </g>
+          <polygon points="58,60 62,60 60,62.5" fill="#ff8fab"/>
+          <rect id="mouth" x="54" y="66" width="12" height="4" rx="2" fill="#83e377"/>
+          <line x1="30" y1="64" x2="48" y2="64" stroke="#bfc3d9" stroke-width="2"/>
+          <line x1="30" y1="68" x2="48" y2="66" stroke="#bfc3d9" stroke-width="2"/>
+          <line x1="72" y1="64" x2="90" y2="64" stroke="#bfc3d9" stroke-width="2"/>
+          <line x1="72" y1="66" x2="90" y2="68" stroke="#bfc3d9" stroke-width="2"/>
+          <ellipse cx="60" cy="96" rx="34" ry="16" fill="#50557a"/>
+        </svg>
+      </div>
+      <div>
+        <div class="flex items-center gap-2">
+          <h1 class="font-[Fredoka] text-3xl">Dad <span class="text-[#ffe082]">AI</span></h1>
+          <span class="tag">play • learn • ask</span>
+        </div>
+        <p class="text-white/80 text-sm">Answers, stories, drawing ideas — now with Arabic + DOCX/EPUB books 📚</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-2">
+      <input id="kidName" class="ring px-3 py-2 rounded-lg text-sm bg-white/80 text-gray-900 placeholder-gray-600" placeholder="Kid name (optional)"/>
+      <button id="settingsBtn" class="btn btn-sec px-3 py-2 rounded-lg">⚙️ Settings</button>
+    </div>
+  </header>
+
+  <main class="grid md:grid-cols-5 gap-3 min-h-0">
+    <aside class="glass p-3 md:col-span-2 floaty">
+      <div id="modeSwitcher" class="grid grid-cols-4 gap-2">
+        <button data-mode="question" class="btn btn-sec rounded-xl py-2 font-semibold border border-white/20">Ask</button>
+        <button data-mode="story"    class="btn btn-sec rounded-xl py-2 font-semibold border border-white/20">Story ✨</button>
+        <button data-mode="drawing"  class="btn btn-sec rounded-xl py-2 font-semibold border border-white/20">Drawing ✍️</button>
+        <button data-mode="book"     class="btn btn-sec rounded-xl py-2 font-semibold border border-white/20">Book Q&amp;A 📚</button>
+      </div>
+
+      <div id="bookPanel" class="card p-3 mt-3 hidden">
+        <div class="flex items-center justify-between">
+          <h3 class="font-semibold">Your Book</h3>
+          <div id="bookStatus" class="text-xs opacity-90">No book loaded</div>
+        </div>
+        <div class="mt-2 space-y-2">
+          <input id="bookFile" type="file" accept=".pdf,.txt,.docx,.epub" class="block w-full text-sm file:mr-3 file:px-3 file:py-2 file:rounded-lg file:border-0 file:bg-white/90 file:text-gray-900"/>
+          <button id="indexBtn" class="btn btn-sec px-3 py-2 rounded-lg w-full">Build Book Index</button>
+          <p class="text-xs opacity-80">PDF / TXT / DOCX / EPUB — processed locally in your browser.</p>
+        </div>
+      </div>
+
+      <form id="qaForm" class="mt-3 flex flex-col gap-2">
+        <div class="flex gap-2">
+          <input id="userInput" class="ring flex-1 p-3 rounded-xl bg-white/90 text-gray-900 placeholder-gray-600" placeholder="Why is the sky blue?" required/>
+          <button id="micBtn" type="button" class="btn btn-prim px-3 rounded-xl" title="Speak"><span id="micIcon">🎤</span></button>
+        </div>
+        <div class="flex gap-2">
+          <button id="submitBtn" class="btn btn-prim px-4 py-3 rounded-xl">Ask!</button>
+          <button id="resetBtn" type="button" class="btn px-4 py-3 rounded-xl bg-rose-400 hidden">Again</button>
+          <button id="readBtn" type="button" class="btn btn-sec px-4 py-3 rounded-xl">🔊 Read</button>
+        </div>
+      </form>
+
+      <div class="mt-3 grid grid-cols-3 gap-2 text-sm">
+        <button class="btn card py-2" data-sfx="boing">🪀 Boing</button>
+        <button class="btn card py-2" data-sfx="zap">⚡ Zap</button>
+        <button class="btn card py-2" data-sfx="pop">🫧 Pop</button>
+      </div>
+
+      <div class="mt-4 card p-3">
+        <div class="flex items-center justify-between">
+          <h3 class="font-semibold">Tiny Quiz</h3>
+          <button id="newQuiz" class="btn btn-sec px-3 py-1 rounded-lg">New</button>
+        </div>
+        <div id="quizBox" class="mt-2 text-sm"></div>
+      </div>
+    </aside>
+
+    <section class="glass p-4 md:col-span-3 overflow-hidden relative">
+      <div id="ansWrap" class="h-full flex items-center justify-center">
+        <div id="bubble" class="bubble hidden max-w-[90%] md:max-w-[680px]">
+          <p id="answer-text" class="text-lg md:text-xl leading-relaxed"></p>
+        </div>
+        <div id="loader" class="loader hidden"></div>
+      </div>
+
+      <div id="ctxPanel" class="card p-3 mt-3 hidden">
+        <h4 class="font-semibold mb-2">From your book</h4>
+        <div id="ctxSnippets" class="space-y-2 text-sm text-white/90"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="glass px-5 py-3 text-sm text-white/90 flex items-center justify-between">
+    <span>Made with ❤️ — Dad AI</span>
+    <span id="voiceState" class="tag">Voice: off</span>
+  </footer>
+</div>
+
+<dialog id="settingsDlg" class="card p-0 w-[min(560px,95vw)] text-gray-900">
+  <form method="dialog">
+    <div class="px-5 py-3 border-b border-black/10"><h2 class="font-semibold text-lg">Settings</h2></div>
+    <div class="p-5 grid gap-3">
+      <label class="text-sm">Gemini API Key
+        <input id="apiKeyInput" class="w-full mt-1 p-2 rounded-lg border" placeholder="AIza... (optional)"/>
+      </label>
+      <label class="text-sm flex items-center gap-2">
+        <input id="autoVoice" type="checkbox" class="scale-125"/>
+        Auto‑read answers (Dad AI cat talks)
+      </label>
+      <p class="text-xs text-gray-600">Key stays in this browser. With no key, Dad AI uses playful offline replies (book search still works locally).</p>
+    </div>
+    <div class="px-5 py-3 border-t border-black/10 flex justify-end gap-2">
+      <button class="px-3 py-2 rounded-lg">Close</button>
+      <button id="saveSettings" type="button" class="px-3 py-2 rounded-lg bg-[#ffd54a] font-semibold">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<div aria-live="polite" aria-atomic="true" class="sr-only" id="sr"></div>
+
+<script>
+/* ====================== Language detection & helpers ====================== */
+function detectLang(text){
+  const ar = (text.match(/[\u0600-\u06FF]/g)||[]).length;
+  const en = (text.match(/[A-Za-z]/g)||[]).length;
+  if(ar===0 && en===0) return 'en';
+  return ar >= en ? 'ar' : 'en';
+}
+function dirFor(text){ return detectLang(text)==='ar' ? 'rtl' : 'ltr'; }
+
+/* Minimal stopwords to de-noise search */
+const STOP_EN = new Set("a an and are as at be but by for from has have if in into is it its of on or that the to was were will with what when where who why how your you".split(/\s+/));
+const STOP_AR = new Set("في على من إلى عن أن إن كان تكون تكونوا الذي التي الذين التي هذا هذه ذلك هناك هنا هي هو هم هن ثم حيث كما أي اذا إذا أو و يا ما مازال لماذا متى كيف لأن لدى عند بعد قبل بين كل بعض جدًا جدا قد لقد مثلا مثلاً إنّ أنّ إلا إلاّ إلى".split(/\s+/));
+
+/* ====================== State & DOM ====================== */
+const S = {
+  mode:'question',
+  apiKey: localStorage.getItem('g_apiKey') || '',
+  autoVoice: localStorage.getItem('g_autoVoice')==='1',
+  kid: localStorage.getItem('g_kid') || '',
+  typing: null,
+
+  // speech
+  lastLang: 'en', // track last input language for STT
+
+  // book index
+  bookName: '', bookText: '', chunks: [], idf: new Map(), tfidfNorms: [], tfs: [], ready:false
+};
+const E = {
+  catWrap: document.getElementById('catWrap'), eyes: document.getElementById('eyes'),
+  pL: document.getElementById('pL'), pR: document.getElementById('pR'), mouth: document.getElementById('mouth'),
+
+  modeSwitcher: document.getElementById('modeSwitcher'),
+  bookPanel: document.getElementById('bookPanel'), bookFile: document.getElementById('bookFile'),
+  indexBtn: document.getElementById('indexBtn'), bookStatus: document.getElementById('bookStatus'),
+
+  ctxPanel: document.getElementById('ctxPanel'), ctxSnippets: document.getElementById('ctxSnippets'),
+
+  form: document.getElementById('qaForm'), input: document.getElementById('userInput'),
+  micBtn: document.getElementById('micBtn'), micIcon: document.getElementById('micIcon'),
+  submit: document.getElementById('submitBtn'), reset: document.getElementById('resetBtn'), read: document.getElementById('readBtn'),
+
+  bubble: document.getElementById('bubble'), answer: document.getElementById('answer-text'), loader: document.getElementById('loader'),
+
+  kidName: document.getElementById('kidName'), settingsBtn: document.getElementById('settingsBtn'), settingsDlg: document.getElementById('settingsDlg'),
+  apiKeyInput: document.getElementById('apiKeyInput'), autoVoice: document.getElementById('autoVoice'), saveSettings: document.getElementById('saveSettings'),
+
+  sr: document.getElementById('sr'), voiceState: document.getElementById('voiceState'),
+
+  newQuiz: document.getElementById('newQuiz'), quizBox: document.getElementById('quizBox')
+};
+
+/* ====================== Audio SFX ====================== */
+const synth = new Tone.Synth().toDestination();
+const poly  = new Tone.PolySynth(Tone.Synth).toDestination(); poly.volume.value = -6;
+function sfx(n){ if(n==='boing'){ synth.triggerAttackRelease('C4','8n'); setTimeout(()=>synth.triggerAttackRelease('G3','16n'),100);}
+                 if(n==='zap'){ poly.triggerAttackRelease(['C5','E5','G5'],'8n'); }
+                 if(n==='pop'){ synth.triggerAttackRelease('A4','32n'); } }
+document.querySelectorAll('[data-sfx]').forEach(b=>b.onclick=()=>sfx(b.dataset.sfx));
+
+/* ====================== Cat follow & eyes ====================== */
+let targetX=0, targetY=0, rx=0, ry=0, last=performance.now();
+const DRIFT=46, TILT=9;
+function setTarget(x,y){ const nx=(x/innerWidth)*2-1, ny=(y/innerHeight)*2-1; targetX=nx*DRIFT; targetY=ny*DRIFT; }
+addEventListener('mousemove', e=> setTarget(e.clientX,e.clientY));
+addEventListener('touchmove', e=> { if(e.touches[0]) setTarget(e.touches[0].clientX, e.touches[0].clientY)}, {passive:true});
+function followTick(t){ const dt=Math.min((t-last)/16.67,2); last=t; const ease=.12*dt; rx+=(targetX-rx)*ease; ry+=(targetY-ry)*ease;
+  const tilt=(rx/DRIFT)*TILT; E.catWrap.style.transform=`translate3d(${rx}px,${ry}px,0) rotate(${tilt}deg)`; requestAnimationFrame(followTick); }
+requestAnimationFrame(followTick);
+document.body.addEventListener('mousemove', e=>{
+  const r = E.eyes.getBoundingClientRect(); const cx=r.left+r.width/2, cy=r.top+r.height/2;
+  const a=Math.atan2(e.clientY-cy, e.clientX-cx), max=3; const dx=Math.cos(a)*max, dy=Math.sin(a)*max;
+  E.pL.style.transform=`translate(${dx}px,${dy}px)`; E.pR.style.transform=`translate(${dx}px,${dy}px)`;
+});
+
+/* ====================== Quiz ====================== */
+function newQuiz(){
+  const a=Math.floor(Math.random()*6)+1, b=Math.floor(Math.random()*6)+1;
+  const fruit = ['🍌','🍎','🍓','🍇','🍉'][Math.floor(Math.random()*5)];
+  E.quizBox.innerHTML = `<div class="flex items-center gap-2"><span>How many?</span><span class="text-2xl">${fruit.repeat(a)} + ${fruit.repeat(b)} = ?</span></div>
+  <div class="mt-2 flex gap-2"><input id="ans" class="ring p-2 rounded-lg bg-white/95 text-gray-900 w-24" placeholder="${a+b}"/>
+  <button id="go" class="btn btn-sec px-3 rounded-lg">Check</button></div><div id="msg" class="mt-1 text-sm"></div>`;
+  document.getElementById('go').onclick=()=>{ const v=Number(document.getElementById('ans').value), m=document.getElementById('msg');
+    if(v===a+b){ m.textContent="Correct! 🎉"; sfx('boing'); confetti(); } else { m.textContent="Try again 🤔"; sfx('pop'); } };
+}
+E.newQuiz.onclick=(e)=>{e.preventDefault(); newQuiz()};
+
+/* ====================== Confetti ====================== */
+let cnv, ctx, conf=[];
+function ensureCanvas(){ if(cnv) return; cnv=document.createElement('canvas'); cnv.width=innerWidth; cnv.height=innerHeight;
+  cnv.style.cssText='position:fixed;inset:0;pointer-events:none;z-index:1'; document.body.appendChild(cnv); ctx=cnv.getContext('2d');
+  addEventListener('resize',()=>{cnv.width=innerWidth; cnv.height=innerHeight;}); }
+function confetti(){ ensureCanvas(); for(let i=0;i<120;i++){ conf.push({x:innerWidth/2,y:innerHeight/4,vx:(Math.random()-0.5)*6,vy:Math.random()*-6-2,g:.12,r:Math.random()*4+2,a:1});}}
+function confTick(){ if(!ctx) return requestAnimationFrame(confTick); ctx.clearRect(0,0,cnv.width,cnv.height); conf=conf.filter(c=>c.a>0);
+  for(const c of conf){ c.vy+=c.g; c.x+=c.vx; c.y+=c.vy; c.a-=.008; ctx.globalAlpha=Math.max(c.a,0); ctx.beginPath(); ctx.arc(c.x,c.y,c.r,0,Math.PI*2);
+    ctx.fillStyle=`hsl(${Math.random()*360},90%,60%)`; ctx.fill(); } requestAnimationFrame(confTick); }
+confTick();
+
+/* ====================== Modes & UI ====================== */
+function setMode(m){
+  S.mode=m;
+  [...E.modeSwitcher.querySelectorAll('button')].forEach(b=>{
+    b.classList.toggle('btn-prim', b.dataset.mode===m);
+    b.classList.toggle('btn-sec', b.dataset.mode!==m);
+  });
+  E.bookPanel.classList.toggle('hidden', m!=='book');
+
+  if(m==='question'){ E.input.placeholder="Why is the sky blue?"; E.input.classList.remove('hidden'); E.submit.textContent='Ask!'; }
+  if(m==='story'){    E.input.placeholder="A tiny story about a brave cat..."; E.input.classList.remove('hidden'); E.submit.textContent='Tell Story ✨'; }
+  if(m==='drawing'){  E.input.classList.add('hidden'); E.submit.textContent='Get Idea ✍️'; }
+  if(m==='book'){     E.input.placeholder="Ask about your book... (يمكنك السؤال بالعربية)"; E.input.classList.remove('hidden'); E.submit.textContent='Ask Book 📚'; }
+}
+E.modeSwitcher.addEventListener('click', (e)=> { if(e.target.tagName!=='BUTTON') return; setMode(e.target.dataset.mode); });
+setMode('question');
+
+/* ====================== Talking cat mouth ====================== */
+let flapTimer=null;
+function mouthOpen(level=1){ const h=4 + Math.min(1,Math.max(0,level))*10; E.mouth.setAttribute('height',h); E.mouth.setAttribute('y', 66-(h-4)/2); }
+function mouthIdle(){ mouthOpen(0); }
+function speak(text, lang='en'){
+  if(!('speechSynthesis' in window)) return;
+  const u = new SpeechSynthesisUtterance(text);
+  u.rate = lang==='ar' ? 1.0 : 1.02; u.pitch = lang==='ar' ? 1.1 : 1.25; u.lang = (lang==='ar') ? 'ar-SA' : 'en-US';
+  const vs = speechSynthesis.getVoices();
+  const pick = vs.find(v=>v.lang.startsWith(lang==='ar'?'ar':'en')) || vs[0];
+  if(pick) u.voice = pick;
+
+  clearInterval(flapTimer);
+  u.onboundary = ()=>{ mouthOpen(.9); setTimeout(mouthIdle, 100); };
+  u.onstart = ()=>{ mouthOpen(.6); E.voiceState.textContent='Voice: on 🔊'; };
+  u.onend = ()=>{ mouthIdle(); E.voiceState.textContent='Voice: off'; };
+  u.onerror = ()=>{ mouthIdle(); E.voiceState.textContent='Voice: error'; };
+
+  flapTimer = setInterval(()=>{ mouthOpen(Math.random()); setTimeout(mouthIdle, 90); }, 230);
+
+  speechSynthesis.cancel(); speechSynthesis.speak(u);
+}
+
+/* ====================== Typing + auto voice ====================== */
+function typeOut(text){
+  clearInterval(S.typing);
+  const lang = detectLang(text); E.answer.setAttribute('dir', lang==='ar'?'rtl':'ltr');
+  E.answer.textContent=''; E.bubble.classList.remove('hidden');
+  let i=0;
+  S.typing=setInterval(()=>{ if(i<text.length){ E.answer.textContent+=text.charAt(i); synth.triggerAttackRelease('C7','32n'); i++; }
+    else{ clearInterval(S.typing); poly.triggerAttackRelease(['C4','E4','G4'],'8n'); confetti(); if(S.autoVoice) speak(E.answer.textContent, lang); } }, 26);
+}
+
+/* ====================== Offline replies ====================== */
+function offlineReply(lang){
+  if(lang==='ar'){
+    if(S.mode==='drawing') return "ارسم صاروخًا على شكل موزة يطير بجانب قمرٍ نائم 🚀🍌🌙";
+    if(S.mode==='story')   return "كان يا مكان قطٌ صغير وجد جوربًا عملاقًا فجعله قاربًا. كانت رحلةً ميو-عجائبية! 🧦🐱✨";
+    return ["لأن ضوء الشمس يتناثر في الهواء مثل اللمعان! ✨","الغيوم تدغدغ السماء فتبدو زرقاء (الحقيقة: تشتت الضوء).","إنه لعب الضوء مع الهواء… سهل وبسيط! 😄"][Math.floor(Math.random()*3)];
+  } else {
+    if(S.mode==='drawing') return "Draw a rocket‑banana zooming past a sleepy moon 🚀🍌🌙";
+    if(S.mode==='story')   return "Once a tiny cat found a giant sock and used it as a boat. Meowgical! 🧦🐱✨";
+    return ["Because sunlight sprinkles like glitter in the air! ✨","Clouds tickle the sky blue. (Science: light scattering!)","It’s the sun and air playing with light — easy! 😄"][Math.floor(Math.random()*3)];
+  }
+}
+
+/* ====================== Gemini API (optional) ====================== */
+async function callGemini(prompt){
+  E.loader.classList.remove('hidden'); E.bubble.classList.add('hidden');
+  const key=S.apiKey.trim();
+  if(!key){ await new Promise(r=>setTimeout(r,400)); return null; } // null -> use offline
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${encodeURIComponent(key)}`;
+  try{
+    const res = await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{parts:[{text:prompt}]}]})});
+    if(!res.ok) throw new Error(await res.text());
+    const data=await res.json();
+    return (data?.candidates?.[0]?.content?.parts?.[0]?.text||'').trim();
+  }catch(e){ console.error(e); return null; }
+  finally{ E.loader.classList.add('hidden'); }
+}
+
+/* ====================== Prompt builder (Arabic-aware) ====================== */
+function buildPrompt(txt, ctx=''){
+  const lang = detectLang(txt || ctx);
+  if(S.mode==='book'){
+    if(lang==='ar'){
+      return `أجب كأنك مساعد لطيف لطفل، بجمل قصيرة وواضحة (٢–٤ جمل)، مستخدمًا فقط السياق التالي. إذا لم تجد الإجابة في السياق، قل أنك لا تعرف.\n\nالسياق:\n${ctx}\n\nالسؤال: ${txt}`;
+    }
+    return `Answer like a friendly helper for a child, in 2–4 short sentences, using ONLY the context. If it isn't in the context, say you don't know.\n\nContext:\n${ctx}\n\nQuestion: ${txt}`;
+  }
+  if(lang==='ar'){
+    if(S.mode==='question') return `أجب لطفل صغير بأسلوب بسيط وممتع (٢–٤ جمل) مع كلمات صوتية مثل *بوينغ* ورمز تعبيري لطيف واحد. السؤال: "${txt}"`;
+    if(S.mode==='story')   return `اكتب قصة قصيرة جدًا ومفرحة (حتى ٥ جمل) لطفل عمره ٦ سنوات عن: "${txt}". استخدم كلمتين تعبيريّتين وانتهِ بلمسة لطيفة.`;
+    if(S.mode==='drawing') return `أعطني فكرة رسم قصيرة ومضحكة جدًا على شكل عبارة واحدة فقط. مثال: "يرقة ترتدي زلاجات صغيرة".`;
+  } else {
+    if(S.mode==='question') return `Answer a young kid in 2–4 short sentences with simple words, playful sound-words like *boing*, and one cute emoji. Question: "${txt}"`;
+    if(S.mode==='story')   return `Tell a super short, happy story (≤5 sentences) for a 6‑year‑old about: "${txt}". Use simple words and 2 cute emojis. End with a light twist.`;
+    if(S.mode==='drawing') return `Give ONE short, silly drawing idea as a single phrase (no extra text). Example: "A caterpillar in tiny roller skates".`;
+  }
+}
+
+/* ====================== STT & manual TTS ====================== */
+let rec=null, listening=false;
+function getRec(){
+  const R = window.SpeechRecognition||window.webkitSpeechRecognition; if(!R) return null;
+  if(!rec){ rec=new R(); rec.interimResults=false; rec.maxAlternatives=1; }
+  return rec;
+}
+E.input.addEventListener('input', ()=>{ S.lastLang = detectLang(E.input.value||''); });
+
+E.micBtn.onclick=()=>{
+  const r=getRec(); if(!r){ alert('Microphone not supported in this browser. Try Chrome.'); return; }
+  // pick language from last input (fallback en)
+  r.lang = (S.lastLang==='ar') ? 'ar-SA' : 'en-US';
+  if(listening){ r.stop(); return; }
+  r.start(); listening=true; E.micIcon.textContent='🛑';
+  r.onresult=(ev)=>{ const t=ev.results[0][0].transcript; E.input.value=t; S.lastLang = detectLang(t); announce('Heard: '+t); listening=false; E.micIcon.textContent='🎤'; };
+  r.onend=()=>{ listening=false; E.micIcon.textContent='🎤'; };
+};
+E.read.onclick=()=>{ const txt=E.answer.textContent.trim(); if(!txt) return; speak(txt, detectLang(txt)); };
+
+/* ====================== Settings & persistence ====================== */
+E.settingsBtn.onclick=()=>{ E.apiKeyInput.value=S.apiKey; E.autoVoice.checked=S.autoVoice; E.settingsDlg.showModal(); };
+E.saveSettings.onclick=()=>{ S.apiKey=E.apiKeyInput.value.trim(); S.autoVoice=!!E.autoVoice.checked;
+  localStorage.setItem('g_apiKey',S.apiKey); localStorage.setItem('g_autoVoice', S.autoVoice?'1':'0');
+  E.settingsDlg.close(); announce('Settings saved'); E.voiceState.textContent=S.autoVoice?'Voice: auto 🔊':'Voice: off'; };
+E.kidName.value = localStorage.getItem('g_kid')||''; E.kidName.onchange=()=>{ S.kid=E.kidName.value.trim(); localStorage.setItem('g_kid',S.kid); announce(`Hello ${S.kid||'friend'}`); };
+E.voiceState.textContent = S.autoVoice?'Voice: auto 🔊':'Voice: off';
+
+/* ====================== Book engine (PDF/TXT/DOCX/EPUB) ====================== */
+function stripHTML(html){ const d=document.createElement('div'); d.innerHTML=html; return d.textContent||d.innerText||''; }
+async function readTXT(file){ return (await file.text()).replace(/\r\n/g,'\n'); }
+async function readPDF(file){
+  const buf = await file.arrayBuffer(); const pdf = await pdfjsLib.getDocument({data:buf}).promise; let out='';
+  for(let p=1;p<=pdf.numPages;p++){ const page=await pdf.getPage(p); const content=await page.getTextContent(); out += content.items.map(it=>it.str).join(' ') + '\n'; }
+  return out;
+}
+async function readDOCX(file){
+  const ab = await file.arrayBuffer();
+  const res = await window.mammoth.convertToHtml({arrayBuffer:ab});
+  return stripHTML(res.value || '');
+}
+async function readEPUB(file){
+  const ab = await file.arrayBuffer();
+  const book = ePub(ab);
+  await book.ready;
+  const items = book.spine.spineItems;
+  const texts = [];
+  for(const it of items){
+    try{
+      const txt = await it.load(book.load.bind(book)).then(()=> stripHTML(it.document.body.innerText || it.document.body.textContent || ''));
+      texts.push(txt);
+      it.unload(); // free memory
+    }catch(e){ console.warn('EPUB section load failed', e); }
+  }
+  return texts.join('\n\n');
+}
+
+/* Tokenizer with stopword filtering (basic EN+AR) */
+function tokenize(s){
+  const lang = detectLang(s);
+  const raw = (s.toLowerCase().match(/[a-z\u0600-\u06FF]+/g)) || [];
+  return raw.filter(w => lang==='ar' ? !STOP_AR.has(w) : !STOP_EN.has(w));
+}
+function chunkify(text, size=1100, overlap=150){
+  const chunks=[]; let i=0; while(i<text.length){ const part=text.slice(i, i+size); chunks.push(part.trim()); i += size - overlap; }
+  return chunks.filter(Boolean);
+}
+function buildIndex(chunks){
+  const dfs=new Map(), tfs=[];
+  chunks.forEach((c)=>{
+    const toks = tokenize(c); const tf=new Map(); toks.forEach(w=> tf.set(w,(tf.get(w)||0)+1)); tfs.push(tf);
+    const seen=new Set(); tf.forEach((_,w)=>{ if(!seen.has(w)){ dfs.set(w,(dfs.get(w)||0)+1); seen.add(w);} });
+  });
+  const N=chunks.length, idf=new Map(); dfs.forEach((df,w)=> idf.set(w, Math.log(1 + N/(1+df))));
+  const norms = tfs.map(tf=>{ let sum=0; tf.forEach((f,w)=>{ const v = f*(idf.get(w)||0); sum += v*v; }); return Math.sqrt(sum)||1e-6; });
+  return {tfs,idf,norms};
+}
+function cosineScore(q, idx){
+  const qtf=new Map(); q.forEach(w=> qtf.set(w,(qtf.get(w)||0)+1));
+  let qsum=0; qtf.forEach((f,w)=>{ const v=f*(idx.idf.get(w)||0); qsum+=v*v; }); const qnorm=Math.sqrt(qsum)||1e-6;
+  return S.chunks.map((_,i)=>{ let dot=0; idx.tfs[i].forEach((f,w)=>{ const qq=qtf.get(w); if(qq){ dot += (f*(idx.idf.get(w)||0)) * (qq*(idx.idf.get(w)||0)); } }); return dot/(idx.norms[i]*qnorm); });
+}
+function topBookContext(query, k=3){
+  if(!S.ready) return {snippets:[], joined:''};
+  const q = tokenize(query); const scores = cosineScore(q, {tfs:S.tfs,idf:S.idf,norms:S.tfidfNorms});
+  const idxs = scores.map((s,i)=>[s,i]).sort((a,b)=>b[0]-a[0]).slice(0,k).filter(x=>x[0]>0.0001);
+  const snippets = idxs.map(([s,i])=>({score:s, text:S.chunks[i]}));
+  const joined = snippets.map((s,i)=>`[${i+1}] ${s.text}`).join('\n---\n');
+  return {snippets, joined};
+}
+function showSnippets(snips){
+  E.ctxSnippets.innerHTML='';
+  snips.forEach(s=>{
+    const div=document.createElement('div'); div.className='p-2 rounded bg-white/10 border border-white/15';
+    const d = detectLang(s.text); div.setAttribute('dir', d==='ar'?'rtl':'ltr');
+    div.textContent = s.text.slice(0,600) + (s.text.length>600?'…':'');
+    E.ctxSnippets.appendChild(div);
+  });
+  E.ctxPanel.classList.toggle('hidden', snips.length===0);
+}
+
+/* Build index button */
+E.indexBtn.onclick = async ()=>{
+  const f = E.bookFile.files?.[0]; if(!f){ alert('Choose a file first.'); return; }
+  E.bookStatus.textContent='Loading...';
+  try{
+    const name=f.name.toLowerCase();
+    let text='';
+    if(name.endsWith('.pdf'))  text = await readPDF(f);
+    else if(name.endsWith('.txt'))  text = await readTXT(f);
+    else if(name.endsWith('.docx')) text = await readDOCX(f);
+    else if(name.endsWith('.epub')) text = await readEPUB(f);
+    else throw new Error('Unsupported file');
+
+    S.bookName=f.name; S.bookText=text;
+    E.bookStatus.textContent='Chunking...';
+    S.chunks = chunkify(text, 1200, 160);
+    E.bookStatus.textContent=`Indexing ${S.chunks.length} chunks...`;
+    const {tfs,idf,norms} = buildIndex(S.chunks);
+    S.tfs=tfs; S.idf=idf; S.tfidfNorms=norms; S.ready=true;
+    E.bookStatus.textContent=`Ready: ${S.bookName} (${S.chunks.length} chunks)`;
+    announce('Book indexed and ready');
+  }catch(err){ console.error(err); E.bookStatus.textContent='Error reading file'; alert('Could not read this file. Try a different PDF/TXT/DOCX/EPUB.'); }
+};
+
+/* ====================== Form submit ====================== */
+E.form.addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  await Tone.start(); sfx('zap');
+  E.loader.classList.remove('hidden'); E.bubble.classList.add('hidden'); E.reset.classList.remove('hidden');
+
+  const txt = E.input.value.trim();
+  const uilang = detectLang(txt);
+  let reply='', ctx='';
+
+  if(S.mode==='book'){
+    if(!S.ready){ E.loader.classList.add('hidden'); alert('Please load and index a book first.'); return; }
+    const {snippets, joined} = topBookContext(txt, 3);
+    showSnippets(snippets);
+    ctx = joined || '(no relevant context)';
+    const prompt = buildPrompt(txt, ctx);
+    const apiAns = await callGemini(prompt);
+    reply = apiAns || (snippets.length ? (detectLang(snippets[0].text)==='ar' ? `من كتابك:\n\n${snippets[0].text.slice(0,500)}${snippets[0].text.length>500?'…':''}` : `From your book:\n\n${snippets[0].text.slice(0,500)}${snippets[0].text.length>500?'…':''}`) : (uilang==='ar'?'لم أجد ذلك في كتابك.':'I could not find that in your book.'));
+  } else if(S.mode==='drawing'){
+    const prompt = buildPrompt('');
+    const apiAns = await callGemini(prompt);
+    reply = apiAns || offlineReply(uilang);
+  } else {
+    if(!txt){ E.loader.classList.add('hidden'); return; }
+    const prompt = buildPrompt(txt);
+    const apiAns = await callGemini(prompt);
+    reply = apiAns || offlineReply(uilang);
+  }
+
+  E.loader.classList.add('hidden');
+  E.answer.setAttribute('dir', dirFor(reply));
+  typeOut(reply);
+});
+E.reset.onclick=()=>{ sfx('pop'); E.bubble.classList.add('hidden'); E.reset.classList.add('hidden'); E.input.value=''; };
+
+/* ====================== Settings etc. ====================== */
+E.settingsBtn.onclick=()=>{ E.apiKeyInput.value=S.apiKey; E.autoVoice.checked=S.autoVoice; E.settingsDlg.showModal(); };
+E.saveSettings.onclick=()=>{ S.apiKey=E.apiKeyInput.value.trim(); S.autoVoice=!!E.autoVoice.checked;
+  localStorage.setItem('g_apiKey',S.apiKey); localStorage.setItem('g_autoVoice', S.autoVoice?'1':'0');
+  E.settingsDlg.close(); announce('Settings saved'); E.voiceState.textContent=S.autoVoice?'Voice: auto 🔊':'Voice: off'; };
+
+function announce(t){ E.sr.textContent=''; setTimeout(()=>E.sr.textContent=t,0); }
+
+/* ====================== Init ====================== */
+newQuiz();
+</script>
+</body>
+</html>
