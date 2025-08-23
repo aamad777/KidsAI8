@@ -7,16 +7,18 @@
 
 <!-- Tailwind -->
 <script src="https://cdn.tailwindcss.com"></script>
+
 <!-- Tone.js (bleeps) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.min.js"></script>
-<!-- ml5.js DoodleNet for Guess -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/ml5/0.12.2/ml5.min.js"></script>
+
+<!-- TensorFlow.js + ml5.js (for DoodleNet guess) -->
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.21.0/dist/tf.min.js"></script>
+<script src="https://unpkg.com/ml5@0.12.2/dist/ml5.min.js"></script>
 
 <style>
-  :root{ --ink:#f8fafc; --ink2:#e2e8f0; --ring:rgba(255,255,255,.15); }
+  :root{ --ink:#f8fafc; --ring:rgba(255,255,255,.15); }
   body{
-    margin:0; color:var(--ink);
-    font-family: system-ui, ui-sans-serif, "Segoe UI", Roboto;
+    margin:0; color:var(--ink); font-family: ui-sans-serif, system-ui, Segoe UI, Roboto;
     background: radial-gradient(1100px 600px at 80% -10%, #74a2ff 0%, transparent 45%),
                 radial-gradient(800px 500px at 0% 0%, #5b6bff 0%, transparent 50%),
                 linear-gradient(135deg, #141b2e 0%, #1b2242 45%, #26356e 75%, #314593 100%);
@@ -29,20 +31,20 @@
   input[type="text"], input[type="color"], input[type="range"]{ border:1px solid rgba(255,255,255,.25) }
   canvas{ touch-action:none }
 
-  /* Floating robot (no clipping, own box) */
-  #mascotWrap{ position:fixed; bottom:20px; right:20px; width:160px; height:160px; z-index:1000; pointer-events:auto }
-  #mascot{ width:160px; height:160px; cursor:pointer; animation:floaty 6s ease-in-out infinite; }
+  /* Floating robot */
+  #mascotWrap{ position:fixed; bottom:18px; right:18px; width:150px; height:150px; z-index:1000 }
+  #mascot{ width:150px; height:150px; cursor:pointer; animation:floaty 6s ease-in-out infinite; }
   @keyframes floaty{ 0%,100%{transform:translateY(0) rotate(-2deg)} 50%{transform:translateY(-10px) rotate(2deg)} }
 
-  /* Cat family */
-  .cat-wrap{ display:flex; gap:18px; align-items:flex-end }
-  .cat-card{ position:relative; width:92px; height:92px; cursor:pointer }
+  /* Cat family (SVG avatars) */
+  .cat-wrap{ display:flex; gap:22px; align-items:flex-end }
+  .cat-card{ position:relative; width:86px; height:86px; cursor:pointer }
   .cat-label{ position:absolute; top:-18px; left:50%; transform:translateX(-50%);
               background:#fff; color:#111; font-size:12px; padding:2px 8px; border-radius:999px }
 
   /* Sparkles */
-  .sparkle{ position:absolute; width:10px; height:10px; border-radius:50%;
-            pointer-events:none; background:radial-gradient(circle,#fff 0%,#ffe08a 55%,transparent 70%);
+  .sparkle{ position:absolute; width:10px; height:10px; border-radius:50%; pointer-events:none;
+            background:radial-gradient(circle,#fff 0%,#ffe08a 55%,transparent 70%);
             animation:pop .9s ease-out forwards; filter:drop-shadow(0 0 6px #fff) drop-shadow(0 0 10px #ffd54a) }
   @keyframes pop{ 0%{transform:translate(0,0) scale(.6);opacity:.9}
                   100%{transform:translate(var(--dx),var(--dy)) scale(0);opacity:0} }
@@ -52,7 +54,6 @@
   .sketch-label{ position:absolute; top:8px; left:8px; background:#0f172a; color:#fff;
                  padding:2px 8px; border-radius:999px; font-weight:800; font-size:.8rem }
 
-  /* About + Dash dialogs (native <dialog>) */
   dialog{ border:0; border-radius:16px; }
 </style>
 </head>
@@ -60,18 +61,19 @@
   <!-- Floating robot (separate wrapper prevents clipping) -->
   <div id="mascotWrap" aria-label="Robot">
     <svg id="mascot" viewBox="0 0 160 160">
-      <rect x="42" y="44" rx="16" ry="16" width="76" height="56" fill="#7dd3fc" stroke="#0f172a" stroke-width="3"/>
-      <circle cx="64" cy="72" r="8" fill="#fff"/><circle cx="96" cy="72" r="8" fill="#fff"/>
-      <circle id="eyeL2" cx="64" cy="72" r="3" fill="#0f172a"/><circle id="eyeR2" cx="96" cy="72" r="3" fill="#0f172a"/>
-      <line x1="80" y1="44" x2="80" y2="26" stroke="#0f172a" stroke-width="3"/>
-      <circle cx="80" cy="24" r="5" fill="#ef4444"/>
+      <rect x="40" y="48" rx="16" ry="16" width="80" height="56" fill="#7dd3fc" stroke="#0f172a" stroke-width="3"/>
+      <circle cx="62" cy="76" r="8" fill="#fff"/><circle cx="98" cy="76" r="8" fill="#fff"/>
+      <circle id="eyeL2" cx="62" cy="76" r="3" fill="#0f172a"/><circle id="eyeR2" cx="98" cy="76" r="3" fill="#0f172a"/>
+      <line x1="80" y1="48" x2="80" y2="28" stroke="#0f172a" stroke-width="3"/>
+      <circle cx="80" cy="26" r="5" fill="#ef4444"/>
+      <path d="M40 110 h80" stroke="#0f172a" stroke-width="3"/>
     </svg>
   </div>
 
   <!-- Header -->
   <div class="max-w-6xl mx-auto p-4 sm:p-6">
     <div class="card p-3 sm:p-4 flex items-center gap-4 justify-between">
-      <div class="flex items-center gap-4">
+      <div class="flex items-center gap-5">
         <div id="catFamily" class="cat-wrap"></div>
         <div>
           <div class="text-2xl sm:text-3xl font-black">Dad <span class="text-yellow-300">AI</span></div>
@@ -90,7 +92,6 @@
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
       <!-- Left side -->
       <div class="space-y-4">
-        <!-- Tabs -->
         <div class="card p-3">
           <div class="flex gap-3">
             <button class="pill" data-mode="ask">Ask</button>
@@ -99,7 +100,6 @@
           </div>
         </div>
 
-        <!-- Ask / Story / Book -->
         <div class="card p-4">
           <div class="flex gap-2 items-stretch">
             <input id="question" class="flex-1 rounded-lg px-3 py-3 text-black"
@@ -196,11 +196,11 @@
 /* ===========================
    CONFIG
    =========================== */
-const GEMINI_KEY = "AIzaSyDdG9ozT6-il9J0toab_HFLZPQIau_sb0g";   // Replace with your key (or proxy via Worker)
+const GEMINI_KEY = "AIzaSyDdG9ozT6-il9J0toab_HFLZPQIau_sb0g";   // put your key (or proxy via Worker)
 const SEND_MAIL_API = "/api/send-email";           // Cloudflare Worker endpoint
 const DAD_EMAIL_FALLBACK = "ahmadkhader65@gmail.com";
 
-/* ====== Helpers ====== */
+/* ===== Helpers ===== */
 const $ = s => document.querySelector(s);
 function speak(text, lang='en'){
   try{
@@ -227,28 +227,45 @@ function saveLog(entry){
 }
 function loadLog(){ return JSON.parse(localStorage.getItem('dad-ai-log')||'[]'); }
 
-/* ===== Robot & Cats (no clipping) ===== */
+/* ===== Robot eyes follow ===== */
 document.body.addEventListener('pointermove',(e)=>{
   const svg=$('#mascot'); if(!svg) return;
   const r=svg.getBoundingClientRect(), cx=r.left+r.width/2, cy=r.top+r.height/2;
   const dx=(e.clientX-cx)/r.width, dy=(e.clientY-cy)/r.height;
   const mx=Math.max(-1,Math.min(1,dx))*4, my=Math.max(-1,Math.min(1,dy))*4;
-  ['eyeL2','eyeR2'].forEach(id=>svg.getElementById?.(id)?.setAttribute('transform',`translate(${mx},${my})`));
+  svg.querySelectorAll('#eyeL2,#eyeR2').forEach(p=>p.setAttribute('transform',`translate(${mx},${my})`));
 });
 $('#mascotWrap').onclick=()=>$('#aboutDlg').showModal();
 
-function catSVG(label, base){
+/* ===== Cat avatars (Dad / Mama / Baby) ===== */
+function catSVG(label, base, cheeks='#ffd1dc', deco='tie'){
+  const decoSVG = deco==='bow'
+    ? `<circle cx="60" cy="78" r="6" fill="#ff8fb3"/>
+       <polygon points="48,78 60,72 60,84" fill="#ffb3c6"/>
+       <polygon points="72,78 60,72 60,84" fill="#ffb3c6"/>`
+    : `<rect x="56" y="82" width="8" height="14" rx="2" fill="#06b6d4"/>
+       <polygon points="60,92 50,102 70,102" fill="#06b6d4"/>`;
   return `<div class="cat-card" data-open-about="1">
     <div class="cat-label">${label}</div>
-    <svg class="cat" viewBox="0 0 120 120" width="92" height="92" role="img">
-      <path d="M30 40 L48 18 L52 44 Z" fill="${base}"/>
-      <path d="M90 40 L72 18 L68 44 Z" fill="${base}"/>
-      <circle cx="60" cy="62" r="36" fill="${base}"/>
-      <circle cx="46" cy="56" r="8" fill="#fff"/><circle cx="74" cy="56" r="8" fill="#fff"/>
-      <circle class="pL" cx="46" cy="56" r="4" fill="#0f172a"/><circle class="pR" cx="74" cy="56" r="4" fill="#0f172a"/>
-    </svg></div>`;
+    <svg class="cat" viewBox="0 0 120 120" width="86" height="86" role="img">
+      <path d="M32 44 L48 16 L54 46 Z" fill="${base}"/>
+      <path d="M88 44 L72 16 L66 46 Z" fill="${base}"/>
+      <circle cx="60" cy="66" r="36" fill="${base}"/>
+      <circle cx="44" cy="58" r="8" fill="#fff"/><circle cx="76" cy="58" r="8" fill="#fff"/>
+      <circle class="pL" cx="44" cy="58" r="4" fill="#0f172a"/><circle class="pR" cx="76" cy="58" r="4" fill="#0f172a"/>
+      <circle cx="50" cy="72" r="4" fill="${cheeks}"/><circle cx="70" cy="72" r="4" fill="${cheeks}"/>
+      ${decoSVG}
+      <line x1="28" y1="72" x2="46" y2="70" stroke="#0f172a" stroke-width="2"/>
+      <line x1="28" y1="78" x2="46" y2="80" stroke="#0f172a" stroke-width="2"/>
+      <line x1="92" y1="72" x2="74" y2="70" stroke="#0f172a" stroke-width="2"/>
+      <line x1="92" y1="78" x2="74" y2="80" stroke="#0f172a" stroke-width="2"/>
+    </svg>
+  </div>`;
 }
-$('#catFamily').innerHTML = catSVG('Dad','#0f172a') + catSVG('Mama','#f4b6d8') + catSVG('Baby','#ffdca8');
+$('#catFamily').innerHTML =
+  catSVG('Dad','#0f172a','#ffd1dc','tie') +
+  catSVG('Mama','#f4b6d8','#ffc2d4','bow') +
+  catSVG('Baby','#ffdca8','#ffe6ba','tie');
 $('#catFamily').addEventListener('click',e=>{ if(e.target.closest('[data-open-about]')) $('#aboutDlg').showModal(); });
 document.body.addEventListener('pointermove',e=>{
   document.querySelectorAll('.cat').forEach(svg=>{
@@ -279,7 +296,7 @@ async function callGemini(text){
     });
     const j=await r.json();
     return j.candidates?.[0]?.content?.parts?.[0]?.text || null;
-  }catch{ return null; }
+  }catch(e){ console.warn('Gemini error',e); return null; }
 }
 
 /* ===== Mini‑sketch ===== */
@@ -319,7 +336,6 @@ function drawAnimal(){ clearSketch(); const W=sketch.width,H=sketch.height,cx=W/
   sg.fillStyle='#ff9ec2'; sg.beginPath(); sg.arc(cx,cy+15,8,0,2*Math.PI); sg.fill(); }
 function drawGeneric(){ clearSketch(); sg.fillStyle='#1f2937'; sg.font='24px system-ui';
   sg.fillText('Let’s explore this together! ✨', 24, 48); }
-
 function sketchForQuestion(q){
   q=(q||'').toLowerCase();
   if (/(sky|blue|sun|سماء|شمس)/.test(q)) return drawSunSky();
@@ -369,10 +385,10 @@ $('#askBtn').onclick = async ()=>{
 $('#readBtn').onclick = ()=> speak($('#answer').textContent, (/[اأ-ي]/.test($('#answer').textContent)?'ar':'en'));
 $('#clearAns').onclick = ()=> { $('#answer').textContent=''; clearSketch(); };
 
-/* ===== Ask Dad — send email via Worker ===== */
+/* ===== Ask Dad — Worker send ===== */
 $('#askDad').onclick = async ()=>{
   const payload = {
-    to: DAD_EMAIL_FALLBACK,             // server will override if env set
+    to: DAD_EMAIL_FALLBACK,
     subject: "Dad AI — kid needs help",
     text: `Kid: ${$('#kidName').value || ''}\nMode: ${mode}\nQuestion: ${$('#question').value}\nAnswer: ${$('#answer').textContent}`
   };
@@ -381,7 +397,7 @@ $('#askDad').onclick = async ()=>{
     if(!r.ok) throw new Error('send failed');
     alert('Sent to Dad! ✅');
   }catch(e){
-    alert('Could not send from the browser. Please ask your Worker admin to set MAIL_FROM_DOMAIN & DAD_EMAIL. As a fallback, it will open your mail client.');
+    alert('Could not send via server. Falling back to mail app.');
     const subj=encodeURIComponent(payload.subject), body=encodeURIComponent(payload.text);
     location.href=`mailto:${payload.to}?subject=${subj}&body=${body}`;
   }
@@ -415,17 +431,16 @@ $('#save').onclick=()=>{ const a=document.createElement('a'); a.download='drawin
 $('#color').oninput=()=> g.strokeStyle=$('#color').value;
 $('#size').oninput=()=> g.lineWidth=+$('#size').value;
 
-/* Guess with ml5 DoodleNet (robust) */
-let doodleNet=null;
-ml5.DoodleNet().then(net=>{ doodleNet=net; $('#drawAI').textContent='ready ✅'; })
+/* Guess with ml5 DoodleNet (correct usage) */
+let classifier=null;
+ml5.imageClassifier('DoodleNet').then(c=>{ classifier=c; $('#drawAI').textContent='ready ✅'; })
 .catch(()=> $('#drawAI').textContent='error');
 $('#guess').onclick=()=>{
-  if(!doodleNet){ $('#guessOut').textContent='AI not ready'; return; }
+  if(!classifier){ $('#guessOut').textContent='AI not ready'; return; }
   try{
-    // Scale to 256x256 offscreen to avoid taint & speed
     const tmp=document.createElement('canvas'); tmp.width=256; tmp.height=256;
     tmp.getContext('2d').drawImage(board,0,0,256,256);
-    doodleNet.classify(tmp,(err,res)=>{
+    classifier.classify(tmp,(err,res)=>{
       if(err){ $('#guessOut').textContent='error'; return; }
       $('#guessOut').textContent = res.slice(0,3).map(r=>`${r.label} (${(r.confidence*100|0)}%)`).join(' • ');
     });
@@ -434,13 +449,13 @@ $('#guess').onclick=()=>{
 
 /* Draw by name */
 $('#drawIt').onclick=()=>{
-  const p=($('#whatToDraw').value||'').toLowerCase();
+  const txt=($('#whatToDraw').value||'').toLowerCase();
   const W=board.width,H=board.height; g.fillStyle='#fff'; g.fillRect(0,0,W,H);
-  if(/cat|قط/.test(p)) drawCat(); else if(/dog|كلب/.test(p)) drawDog();
-  else if(/bunny|rabbit|أرنب/.test(p)) drawBunny(); else if(/bird|طائر/.test(p)) drawBird();
-  else if(/fish|سمكة/.test(p)) drawFish(); else if(/rocket|صاروخ/.test(p)) drawRocket();
-  else if(/sun|شمس/.test(p)) drawSun(); else if(/cloud|سحابة/.test(p)) drawCloud();
-  else if(/plant|seed|نبات/.test(p)) drawPlant(); else {
+  if(/cat|قط/.test(txt)) drawCat(); else if(/dog|كلب/.test(txt)) drawDog();
+  else if(/bunny|rabbit|أرنب/.test(txt)) drawBunny(); else if(/bird|طائر/.test(txt)) drawBird();
+  else if(/fish|سمكة/.test(txt)) drawFish(); else if(/rocket|صاروخ/.test(txt)) drawRocket();
+  else if(/sun|شمس/.test(txt)) drawSun(); else if(/cloud|سحابة/.test(txt)) drawCloud();
+  else if(/plant|seed|نبات/.test(txt)) drawPlant(); else {
     g.fillStyle='#222'; g.font='24px system-ui'; g.fillText('Try: cat, dog, bunny, bird, fish, rocket, sun, cloud, plant', 22, 40);
   }
 };
