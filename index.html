@@ -7,178 +7,119 @@
 
   <!-- Tailwind -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Tone.js (cute bleeps; safe if blocked) -->
+  <!-- Tone.js -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.min.js"></script>
 
   <style>
     :root {
-      --ink:#1f2937;         /* main text */
-      --ink2:#334155;        /* secondary text */
-      --brand:#f59e0b;       /* amber */
-      --brand2:#ffd54a;      /* bright yellow */
-      --bg1:#fff7cc;         /* warm paper yellow */
-      --bg2:#fff2a6;         /* lighter yellow */
-      --ring:rgba(0,0,0,.08);
+      --ink:#f8fafc;
+      --ink2:#e2e8f0;
+      --brand:#f59e0b;
     }
 
-    /* ===== Kidsy background (yellow clouds & blobs) ===== */
     body{
       margin:0;
       color:var(--ink);
-      font-family: system-ui, ui-sans-serif, "Segoe UI", Roboto, Apple Color Emoji, Noto Color Emoji;
-      background:
-        radial-gradient(1600px 800px at 20% -10%, var(--bg2) 0%, transparent 50%),
-        radial-gradient(1200px 700px at 90% 0%, var(--bg1) 0%, transparent 45%),
-        linear-gradient(180deg, #fff9d6 0%, #fff3b3 100%);
+      font-family: system-ui, ui-sans-serif, "Segoe UI", Roboto;
+      background: linear-gradient(135deg, #4f46e5, #818cf8); /* original blue */
     }
-    .card{ background:#ffffffd9; backdrop-filter:blur(6px); border:1px solid var(--ring); border-radius:18px; color:var(--ink) }
-    .btn{ background:var(--brand2); color:#0f172a; font-weight:800; border-radius:12px; padding:.65rem 1rem; border:2px solid #facc15 }
-    .btn:hover{ filter:brightness(.98) }
+    .card{ background:#ffffff1a; backdrop-filter:blur(8px); border-radius:18px; padding:1rem; }
+    .btn{ background:#ffd54a; color:#1f2937; font-weight:800; border-radius:12px; padding:.6rem 1rem }
     .btn-sec{ background:#0f172a; color:#fff; font-weight:700; border-radius:12px; padding:.55rem .9rem }
     .pill{ background:#0f172a; color:#fff; padding:.45rem .8rem; border-radius:999px; font-weight:800 }
-    .tag{ background:#f1f5f9; color:#334155; padding:.25rem .6rem; border-radius:999px; font-size:.85rem; border:1px solid #e2e8f0 }
-
-    input[type="text"], input[type="color"], input[type="range"] { border:1px solid #e2e8f0 }
+    .tag{ background:#334155; color:#fff; padding:.25rem .6rem; border-radius:999px; font-size:.85rem }
 
     canvas{ touch-action:none }
 
-    /* Floating robot mascot (clickable) */
     #mascot {
       position: fixed; bottom: 20px; right: 20px;
       width: 140px; height: 140px; z-index: 1000;
-      animation: floaty 6s ease-in-out infinite; pointer-events:auto; cursor:pointer; opacity:.95;
+      animation: floaty 6s ease-in-out infinite; cursor:pointer;
     }
     @keyframes floaty { 0%,100%{ transform: translateY(0) rotate(-2deg) } 50%{ transform: translateY(-10px) rotate(2deg) } }
 
-    /* Cat family */
     .cat-wrap { display:flex; gap:14px; align-items:flex-end }
-    .cat-card{ position:relative; width:86px; height:86px; cursor:pointer; filter: drop-shadow(0 8px 14px rgba(0,0,0,.18)); }
-    .cat-label{ position:absolute; top:-18px; left:50%; transform:translateX(-50%); background:#0f172a; color:#fff; font-size:12px; padding:2px 8px; border-radius:999px; box-shadow:0 6px 18px rgba(0,0,0,.07) }
+    .cat-card{ position:relative; width:86px; height:86px; cursor:pointer; }
+    .cat-label{ position:absolute; top:-18px; left:50%; transform:translateX(-50%); background:#fff; color:#111; font-size:12px; padding:2px 8px; border-radius:999px }
 
-    /* Sparkles */
     .sparkle {
       position:absolute; pointer-events:none; width:10px; height:10px; border-radius:50%;
       background: radial-gradient(circle, #fff 0%, #ffe08a 50%, transparent 70%);
       animation: pop 900ms ease-out forwards;
       filter: drop-shadow(0 0 6px #fff) drop-shadow(0 0 10px #ffd54a);
-      opacity:.9;
     }
     @keyframes pop{
       0%{ transform: translate(0,0) scale(.6); opacity:.9 }
-      80%{ opacity:.9 }
       100%{ transform: translate(var(--dx), var(--dy)) scale(0); opacity:0 }
     }
-
-    /* Mini sketch frame */
-    .sketch-frame{ position:relative; border-radius:14px; overflow:hidden; border:2px dashed #fde68a; box-shadow: inset 0 0 0 6px #fffdf2 }
-    .sketch-label{
-      position:absolute; top:8px; left:8px; background:#0f172a; color:#fff;
-      padding:2px 8px; border-radius:999px; font-weight:800; font-size:.8rem;
-    }
+    .sketch-frame{ position:relative; border-radius:14px; overflow:hidden; border:2px dashed #818cf8 }
+    .sketch-label{ position:absolute; top:8px; left:8px; background:#0f172a; color:#fff;
+      padding:2px 8px; border-radius:999px; font-weight:800; font-size:.8rem; }
   </style>
 </head>
 <body>
-  <!-- 🛸 Floating robot mascot (click to open About) -->
+  <!-- Floating robot -->
   <div id="mascot" title="About Dad AI">
-    <svg id="mascotSVG" viewBox="0 0 140 140" width="140" height="140" aria-label="Robot mascot">
+    <svg id="mascotSVG" viewBox="0 0 140 140" width="140" height="140">
       <rect x="30" y="30" rx="14" ry="14" width="80" height="60" fill="#7dd3fc" stroke="#0f172a" stroke-width="3"/>
       <circle cx="55" cy="58" r="8" fill="#fff"/><circle cx="85" cy="58" r="8" fill="#fff"/>
       <circle id="eyeL2" cx="55" cy="58" r="3" fill="#0f172a"/><circle id="eyeR2" cx="85" cy="58" r="3" fill="#0f172a"/>
       <line x1="70" y1="30" x2="70" y2="16" stroke="#0f172a" stroke-width="3"/>
       <circle cx="70" cy="14" r="4" fill="#ef4444"/>
-      <!-- jet puffs -->
-      <path d="M40 90 C50 110, 60 110, 70 90" fill="#fff1e0"/>
-      <path d="M70 90 C80 110, 90 110, 100 90" fill="#fff1e0"/>
     </svg>
   </div>
 
-  <!-- About popup -->
-  <dialog id="aboutDlg" class="card p-0 w-[min(680px,96vw)] text-gray-900">
-    <form method="dialog">
-      <div class="px-5 py-3 border-b font-extrabold">About Dad AI</div>
-      <div class="p-5 space-y-3">
-        <p class="leading-relaxed">
-          👋 Hi! On Dad AI you can ask questions, see cute mini animations with sparkles, draw fun things,
-          and upload books for learning.
-        </p>
-        <p class="leading-relaxed">
-          Click the robot or any cat to open this message again.
-        </p>
-      </div>
-      <div class="px-5 py-3 border-t flex justify-end"><button class="btn-sec">Close</button></div>
-    </form>
-  </dialog>
-
-  <!-- Header with Cat Family (click any to open About) -->
+  <!-- Header -->
   <div class="max-w-6xl mx-auto p-4 sm:p-6">
-    <div class="card p-3 sm:p-4 flex items-center gap-4 justify-between">
+    <div class="card flex items-center gap-4 justify-between">
       <div class="flex items-center gap-4">
         <div id="catFamily" class="cat-wrap"></div>
         <div>
-          <div class="text-2xl sm:text-3xl font-black leading-tight">Dad <span class="text-[var(--brand)]">AI</span></div>
-          <div class="text-sm text-[var(--ink2)]">Ask, draw, and learn — English & Arabic</div>
+          <div class="text-2xl sm:text-3xl font-black">Dad <span class="text-yellow-300">AI</span></div>
+          <div class="text-sm">Ask, draw, and learn — English & Arabic</div>
         </div>
       </div>
       <div class="flex items-center gap-2">
-        <input id="kidName" class="px-3 py-2 rounded-lg border text-[var(--ink)] bg-white" placeholder="Kid name (optional)"/>
-        <button class="btn-sec" onclick="document.getElementById('aboutDlg').showModal()">About</button>
+        <input id="kidName" class="px-3 py-2 rounded-lg text-black" placeholder="Kid name"/>
       </div>
     </div>
   </div>
 
-  <!-- ===== Main app ===== -->
+  <!-- Main -->
   <div class="max-w-6xl mx-auto p-4 sm:p-6">
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
       <!-- Left: Ask + Books -->
       <div class="space-y-4">
-        <div class="card p-4">
-          <div class="flex gap-2 mb-3">
-            <span class="pill">Ask</span>
-            <span class="pill">Books</span>
-          </div>
+        <div class="card">
+          <div class="flex gap-2 mb-3"><span class="pill">Ask</span></div>
           <div class="flex gap-2 items-stretch">
-            <input id="question" class="flex-1 rounded-lg px-3 py-3 border text-[var(--ink)] bg-white"
-                   placeholder="Why is the sky blue? / لماذا السماء زرقاء؟"/>
+            <input id="question" class="flex-1 rounded-lg px-3 py-3 text-black" placeholder="Why is the sky blue?"/>
             <button id="askBtn" class="btn">Ask!</button>
           </div>
-          <div class="mt-2 text-sm text-[var(--ink2)]">AI: <span id="aiStatus">checking…</span></div>
-
-          <div class="mt-4">
-            <input type="file" id="bookFile" accept=".txt,.pdf,.docx,.epub" class="hidden"/>
-            <label for="bookFile" class="btn-sec cursor-pointer">📄 Upload a book</label>
-            <span id="bookStatus" class="tag ml-2">No book</span>
-          </div>
+          <div class="mt-2 text-sm">AI: <span id="aiStatus">checking…</span></div>
         </div>
 
-        <!-- Big Drawing Pad -->
-        <div class="card p-4">
+        <div class="card">
+          <div class="flex gap-2 mb-3"><span class="pill">Drawing Pad</span></div>
           <div class="flex flex-wrap items-center gap-2">
             <button id="pen" class="btn-sec">✏️ Pen</button>
             <button id="eraser" class="btn-sec">🧽 Eraser</button>
             <button id="clear" class="btn-sec">🧺 Clear</button>
-            <span class="ml-1">Color</span><input id="color" type="color" value="#000000" class="rounded border p-1"/>
-            <span>Size</span><input id="size" type="range" min="2" max="40" value="8"/>
-            <input id="whatToDraw" class="rounded-lg px-3 py-2 border text-[var(--ink)] bg-white flex-1"
-                   placeholder="Type: cat, dog, bunny, bird, fish"/>
-            <button id="drawIt" class="btn">🖼️ Draw it</button>
+            <input id="color" type="color" value="#000000"/>
+            <input id="size" type="range" min="2" max="40" value="8"/>
           </div>
-          <canvas id="board" width="900" height="420" class="w-full bg-white rounded-xl mt-3 border"></canvas>
+          <canvas id="board" width="900" height="420" class="w-full bg-white rounded-xl mt-3"></canvas>
         </div>
       </div>
 
       <!-- Right: Answer + Mini Sketch -->
       <div class="space-y-4">
-        <div id="answerCard" class="card p-4 relative">
-          <div class="text-sm text-[var(--ink2)] mb-1">Answer</div>
-          <div id="answer" class="text-lg leading-relaxed">Ask something and I’ll speak! 🗣️</div>
-          <!-- sparkles will appear absolutely inside this card -->
+        <div id="answerCard" class="card relative">
+          <div class="text-sm mb-1">Answer</div>
+          <div id="answer" class="text-lg">Ask something and I’ll speak! 🗣️</div>
         </div>
 
-        <div class="card p-4">
-          <div class="flex items-center justify-between mb-2">
-            <div class="text-sm text-[var(--ink2)]">Mini Animation</div>
-            <span id="sketchHint" class="tag">auto‑sketch from your question</span>
-          </div>
+        <div class="card">
           <div class="sketch-frame">
             <span class="sketch-label">Tiny doodle ✏️</span>
             <canvas id="miniSketch" width="900" height="260" class="w-full bg-white"></canvas>
@@ -188,320 +129,67 @@
     </div>
   </div>
 
-  <script>
-  /* =======================
-     !!! GEMINI API KEY !!!
-     ======================= */
-  const GEMINI_KEY = "AIzaSyDdG9ozT6-il9J0toab_HFLZPQIau_sb0g"; // Replace for live AI
-  // For production, hide your key behind a Cloudflare Worker proxy.
+<script>
+const GEMINI_KEY = "AIzaSyDdG9ozT6-il9J0toab_HFLZPQIau_sb0g"; // put your Gemini API key
 
-  // ---- Cute voice helper ----
-  function speak(text, lang='en'){
-    try{
-      const u = new SpeechSynthesisUtterance(text);
-      u.lang = (lang==='ar' ? 'ar-SA' : 'en-US');
-      const voices = window.speechSynthesis.getVoices();
-      const pick = voices.find(v => v.name.includes('Google UK English Female')) ||
-                   voices.find(v => v.name.includes('Google US English')) ||
-                   voices.find(v => v.lang === u.lang);
-      if (pick) u.voice = pick;
-      u.pitch = 1.18; u.rate = 0.98; u.volume=1;
-      window.speechSynthesis.cancel(); window.speechSynthesis.speak(u);
-    }catch{}
-  }
+function speak(text){
+  try{
+    const u=new SpeechSynthesisUtterance(text);
+    u.lang='en-US'; u.pitch=1.1; u.rate=1;
+    window.speechSynthesis.cancel(); window.speechSynthesis.speak(u);
+  }catch{}
+}
 
-  // ---- Gemini call ----
-  async function callGemini(prompt){
-    if(!GEMINI_KEY || GEMINI_KEY === "AIzaSyDdG9ozT6-il9J0toab_HFLZPQIau_sb0g") return null;
-    try{
-      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`,{
-        method:"POST", headers:{ "Content-Type":"application/json" },
-        body: JSON.stringify({ contents:[{ parts:[{ text: prompt }]}] })
-      });
-      const j = await r.json();
-      return j.candidates?.[0]?.content?.parts?.[0]?.text || null;
-    }catch(e){ console.warn("Gemini error", e); return null; }
-  }
-
-  // ---- Robot eyes track + click opens About ----
-  document.body.addEventListener('pointermove',(e)=>{
-    const svg = document.getElementById('mascotSVG'); if(!svg) return;
-    const r = svg.getBoundingClientRect(), cx=r.left+r.width/2, cy=r.top+r.height/2;
-    const dx=(e.clientX-cx)/r.width, dy=(e.clientY-cy)/r.height;
-    const mx=Math.max(-1,Math.min(1,dx))*4, my=Math.max(-1,Math.min(1,dy))*4;
-    document.getElementById('eyeL2').setAttribute('transform',`translate(${mx},${my})`);
-    document.getElementById('eyeR2').setAttribute('transform',`translate(${mx},${my})`);
-  });
-  document.getElementById('mascot').addEventListener('click',()=> document.getElementById('aboutDlg').showModal());
-
-  // ---- Cat family (click any to open About) ----
-  function catSVG(type){
-    const styles = {
-      dad:  { base:"#22252f", ear:"#1b1e27", pupil:"#0f172a", acc:"tie",  label:"Dad" },
-      mama: { base:"#f4b6d8", ear:"#f199c7", pupil:"#0f172a", acc:"bow",  label:"Mama" },
-      baby: { base:"#ffdca8", ear:"#ffc879", pupil:"#0f172a", acc:"pac",  label:"Baby" },
-    };
-    const s = styles[type];
-    return `
-      <div class="cat-card" data-open-about="1" title="About Dad AI" aria-label="${s.label} Cat">
-        <div class="cat-label">${s.label}</div>
-        <svg class="cat" viewBox="0 0 120 120" width="86" height="86" role="img">
-          <defs><filter id="sh" x="-20%" y="-20%" width="140%" height="140%">
-            <feDropShadow dx="0" dy="6" stdDeviation="5" flood-color="rgba(0,0,0,.2)"/></filter></defs>
-          <path d="M30 40 L48 18 L52 44 Z" fill="${s.ear}" filter="url(#sh)"/>
-          <path d="M90 40 L72 18 L68 44 Z" fill="${s.ear}" filter="url(#sh)"/>
-          <circle cx="60" cy="62" r="36" fill="${s.base}" filter="url(#sh)"/>
-          <circle cx="46" cy="56" r="8" fill="#fff"/><circle cx="74" cy="56" r="8" fill="#fff"/>
-          <circle class="pL" cx="46" cy="56" r="4" fill="${s.pupil}"/><circle class="pR" cx="74" cy="56" r="4" fill="${s.pupil}"/>
-          <polygon points="60,62 56,58 64,58" fill="#ff92b5"/>
-          <path d="M56 68 Q60 71 64 68" stroke="#ff92b5" stroke-width="2" fill="none"/>
-          <g stroke="rgba(255,255,255,.85)" stroke-width="2">
-            <line x1="26" y1="62" x2="44" y2="60"/><line x1="26" y1="66" x2="44" y2="66"/>
-            <line x1="76" y1="60" x2="94" y2="62"/><line x1="76" y1="66" x2="94" y2="66"/>
-          </g>
-          ${s.acc==='tie' ? `<polygon points="60,78 52,86 68,86" fill="#5ec1ff"/><rect x="58" y="70" width="4" height="10" fill="#5ec1ff"/>` : ''}
-          ${s.acc==='bow' ? `<circle cx="52" cy="38" r="7" fill="#ff6aa6"/><circle cx="68" cy="38" r="7" fill="#ff6aa6"/><circle cx="60" cy="38" r="5" fill="#ff8ec0"/>` : ''}
-          ${s.acc==='pac' ? `<circle cx="60" cy="74" r="6" fill="#7ad6ff" stroke="#5ab6e5" stroke-width="2"/>` : ''}
-        </svg>
-      </div>`;
-  }
-  const catWrap = document.getElementById('catFamily');
-  catWrap.innerHTML = catSVG('dad') + catSVG('mama') + catSVG('baby');
-  catWrap.addEventListener('click', (e)=> { if (e.target.closest('[data-open-about]')) document.getElementById('aboutDlg').showModal(); });
-  // cat eye follow
-  document.body.addEventListener('pointermove',(e)=>{
-    document.querySelectorAll('.cat').forEach(svg=>{
-      const r = svg.getBoundingClientRect();
-      const cx = r.left + r.width/2, cy = r.top + r.height/2;
-      const dx = (e.clientX - cx)/r.width, dy = (e.clientY - cy)/r.height;
-      const mx = Math.max(-1, Math.min(1, dx))*4, my = Math.max(-1, Math.min(1, dy))*4;
-      svg.querySelectorAll('.pL,.pR').forEach(p=>p.setAttribute('transform',`translate(${mx},${my})`));
+async function callGemini(prompt){
+  if(!GEMINI_KEY || GEMINI_KEY==="AIzaSyDdG9ozT6-il9J0toab_HFLZPQIau_sb0g") return null;
+  try{
+    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`,{
+      method:"POST", headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({ contents:[{ parts:[{ text: prompt }]}] })
     });
-  });
+    const j = await r.json();
+    return j.candidates?.[0]?.content?.parts?.[0]?.text || null;
+  }catch(e){ return null; }
+}
 
-  // ---------- Ask flow with sparkles + mini sketch ----------
-  const askBtn = document.getElementById('askBtn');
-  const answerEl = document.getElementById('answer');
-  const aiStatus = document.getElementById('aiStatus');
-  const answerCard = document.getElementById('answerCard');
-  aiStatus.textContent = (!GEMINI_KEY || GEMINI_KEY==="AIzaSyDdG9ozT6-il9J0toab_HFLZPQIau_sb0g") ? "key missing (demo mode)" : "ready ✅";
-
-  askBtn.addEventListener('click', async ()=>{
-    const kid = document.getElementById('kidName').value.trim() || 'friend';
-    const q = (document.getElementById('question').value || '').trim();
-    if(!q){ const t="Please type a question!"; answerEl.textContent=t; speak(t); return; }
-
-    answerEl.textContent = "Thinking… 🤔";
-    const lang = /[اأ-ي]/.test(q) ? 'ar' : 'en';
-    const prompt = (lang==='ar'
-      ? "أجب كأب لطيف يتحدث مع طفل صغير. اجعل الجمل قصيرة وبسيطة وممتعة.\n\nالسؤال: "
-      : "Answer like a playful dad talking to a child. Use short, simple, fun sentences.\n\nQuestion: "
-    ) + q;
-
-    let ans = await callGemini(prompt);
-    if(!ans){
-      const cute = lang==='ar'
-        ? [`سؤال رائع يا ${kid}! دعنا نكتشفه خطوة بخطوة.`,`فكرة ممتازة! لنبحث عنها معًا.`]
-        : [`Great question, ${kid}! Let’s explore it together.`,`Love that one! Let’s think like detectives.`];
-      ans = cute[Math.floor(Math.random()*cute.length)];
-    }
-
-    answerEl.textContent = ans;
-    speak(ans, lang);
-    sparkleBurst(answerCard, 26);
-    try{ const s=new Tone.Synth().toDestination(); Tone.start().then(()=> s.triggerAttackRelease('C6','8n')); }catch{}
-
-    drawMiniSketchForQuestion(q); // animate doodle based on keywords
-  });
-
-  // ---------- Sparkles ----------
-  function sparkleBurst(container, count=20){
-    const rect = container.getBoundingClientRect();
-    for(let i=0;i<count;i++){
-      const sp = document.createElement('div');
-      sp.className = 'sparkle';
-      const x = Math.random()*rect.width;
-      const y = (rect.height*0.25) + Math.random()*(rect.height*0.5);
-      const dx = (Math.random()*140-70) + 'px';
-      const dy = (-40 - Math.random()*120) + 'px';
-      sp.style.left = x + 'px';
-      sp.style.top  = y + 'px';
-      sp.style.setProperty('--dx', dx);
-      sp.style.setProperty('--dy', dy);
-      container.appendChild(sp);
-      setTimeout(()=> sp.remove(), 900);
-    }
+function sparkleBurst(container){
+  const rect=container.getBoundingClientRect();
+  for(let i=0;i<20;i++){
+    const sp=document.createElement('div'); sp.className='sparkle';
+    sp.style.left=Math.random()*rect.width+'px';
+    sp.style.top=Math.random()*rect.height+'px';
+    sp.style.setProperty('--dx',(Math.random()*140-70)+'px');
+    sp.style.setProperty('--dy',(-40-Math.random()*120)+'px');
+    container.appendChild(sp); setTimeout(()=>sp.remove(),900);
   }
+}
 
-  // ---------- Mini Sketch (auto animated doodles) ----------
-  const sketch = document.getElementById('miniSketch');
-  const sg = sketch.getContext('2d');
-  function clearSketch(){ sg.fillStyle='#fff'; sg.fillRect(0,0,sketch.width,sketch.height); }
+// Ask
+document.getElementById('askBtn').addEventListener('click',async()=>{
+  const q=document.getElementById('question').value.trim();
+  const ansEl=document.getElementById('answer');
+  ansEl.textContent="Thinking…";
+  let ans=await callGemini("Answer simply for kids: "+q);
+  if(!ans) ans="Great question! Trees give us fruit, shade, and wood!";
+  ansEl.textContent=ans; speak(ans);
+  sparkleBurst(document.getElementById('answerCard'));
+});
 
-  function drawSunSky(){ // blue gradient + rising sun
-    clearSketch();
-    const W=sketch.width,H=sketch.height;
-    const grad = sg.createLinearGradient(0,0,0,H);
-    grad.addColorStop(0,'#bde0ff'); grad.addColorStop(1,'#eaf6ff');
-    sg.fillStyle=grad; sg.fillRect(0,0,W,H);
-    let t=0; const cx=W*0.15, cy=H*0.8, r=40;
-    const loop=()=>{ t+=0.02; sg.fillStyle=grad; sg.fillRect(0,0,W,H);
-      sg.fillStyle='#f0fbdd'; sg.fillRect(0,H*0.82,W,H);
-      const y = cy - Math.sin(t)*80;
-      const rr = r + Math.sin(t)*4;
-      const rad = sg.createRadialGradient(cx,y,2,cx,y,rr);
-      rad.addColorStop(0,'#fff59d'); rad.addColorStop(1,'#ffde59');
-      sg.fillStyle=rad; sg.beginPath(); sg.arc(cx,y,rr,0,Math.PI*2); sg.fill();
-      if(t<Math.PI*2) requestAnimationFrame(loop);
-    }; loop();
-  }
+// Drawing pad
+const board=document.getElementById('board'); const g=board.getContext('2d');
+g.fillStyle='#fff'; g.fillRect(0,0,board.width,board.height); g.strokeStyle='#000'; g.lineWidth=8; g.lineCap='round';
+let drawing=false, erasing=false;
+board.addEventListener('pointerdown',e=>{drawing=true; g.beginPath(); g.moveTo(e.offsetX,e.offsetY);});
+board.addEventListener('pointermove',e=>{ if(!drawing) return; if(erasing){ g.clearRect(e.offsetX-10,e.offsetY-10,20,20);} else { g.lineTo(e.offsetX,e.offsetY); g.stroke(); }});
+board.addEventListener('pointerup',()=>drawing=false);
+document.getElementById('pen').onclick=()=>{ erasing=false; g.strokeStyle=document.getElementById('color').value; g.lineWidth=+document.getElementById('size').value; };
+document.getElementById('eraser').onclick=()=>{ erasing=true; g.lineWidth=20; };
+document.getElementById('clear').onclick=()=>{ g.fillStyle='#fff'; g.fillRect(0,0,board.width,board.height); };
 
-  function drawRainCloud(){
-    clearSketch();
-    const W=sketch.width,H=sketch.height;
-    sg.fillStyle='#e8f2ff'; sg.fillRect(0,0,W,H);
-    const cx=W*0.5, cy=H*0.4;
-    sg.fillStyle='#d7e4f5';
-    const puffs=[[cx-80,cy],[cx-40,cy-20],[cx,cy],[cx+40,cy-15],[cx+80,cy]];
-    puffs.forEach(([x,y],i)=>{ sg.beginPath(); sg.arc(x,y, i%2?40:46,0,Math.PI*2); sg.fill(); });
-    let drops = Array.from({length:30},()=>({x: Math.random()*W, y: H*0.45+Math.random()*40, s:2+Math.random()*3}));
-    function loop(){
-      sg.fillStyle='rgba(255,255,255,.2)'; sg.fillRect(0,H*0.45,W,H*0.55);
-      sg.fillStyle='#7fb6ff'; sg.strokeStyle='#7fb6ff'; sg.lineWidth=2;
-      drops.forEach(d=>{ sg.beginPath(); sg.moveTo(d.x,d.y); sg.lineTo(d.x,d.y+d.s*5); sg.stroke(); d.y+=d.s*2; if(d.y>H) d.y=H*0.5; });
-      requestAnimationFrame(loop);
-    } loop();
-  }
-
-  function drawRocket(){
-    clearSketch();
-    const W=sketch.width,H=sketch.height;
-    let t=0;
-    function loop(){
-      sg.fillStyle='#0b1020'; sg.fillRect(0,0,W,H);
-      sg.fillStyle='#fff'; for(let i=0;i<40;i++){ sg.fillRect(Math.random()*W,Math.random()*H,1,1); }
-      const x = W*0.15 + t*3, y = H*0.75 - t*2;
-      sg.save(); sg.translate(x,y); sg.rotate(-Math.PI/7);
-      sg.fillStyle='#c7e9ff'; sg.fillRect(-20,-10,60,20);
-      sg.fillStyle='#ef4444'; sg.beginPath(); sg.moveTo(40,0); sg.lineTo(60,-12); sg.lineTo(60,12); sg.closePath(); sg.fill();
-      sg.fillStyle='#60a5fa'; sg.beginPath(); sg.arc(-5,0,8,0,Math.PI*2); sg.fill();
-      sg.fillStyle='#ffd54a'; sg.beginPath(); sg.moveTo(-20,0); sg.lineTo(-35,-6); sg.lineTo(-35,6); sg.closePath(); sg.fill();
-      sg.restore();
-      t+=1.2; if(x<W+60) requestAnimationFrame(loop);
-    } loop();
-  }
-
-  function drawPlant(){
-    clearSketch();
-    const W=sketch.width,H=sketch.height;
-    sg.fillStyle='#e9f7ff'; sg.fillRect(0,0,W,H);
-    sg.fillStyle='#b57c4a'; sg.fillRect(0,H*0.7,W,H*0.3);
-    let t=0;
-    function loop(){
-      t+=0.02;
-      const h = Math.min(120, t*120);
-      sg.fillStyle='#e9f7ff'; sg.fillRect(0,0,W,H*0.7);
-      sg.fillStyle='#b57c4a'; sg.fillRect(0,H*0.7,W,H*0.3);
-      sg.strokeStyle='#4caf50'; sg.lineWidth=6; sg.beginPath(); sg.moveTo(W*0.5,H*0.7); sg.lineTo(W*0.5,H*0.7-h); sg.stroke();
-      sg.fillStyle='#7ad957';
-      sg.beginPath(); sg.ellipse(W*0.5-18,H*0.7-h+20,24,10, -0.6, 0, Math.PI*2); sg.fill();
-      sg.beginPath(); sg.ellipse(W*0.5+18,H*0.7-h+40,24,10, 0.6, 0, Math.PI*2); sg.fill();
-      if(h<120) requestAnimationFrame(loop);
-    } loop();
-  }
-
-  function drawAnimal(name){
-    clearSketch();
-    const W=sketch.width,H=sketch.height, cx=W/2, cy=H/2+10;
-    const base = /cat|قط/.test(name) ? '#fff0f6' : /dog|كلب/.test(name) ? '#ffe9cc' : '#e7f0ff';
-    sg.fillStyle=base; sg.beginPath(); sg.arc(cx,cy,90,0,Math.PI*2); sg.fill();
-    sg.fillStyle='#ffd6e7'; sg.beginPath(); sg.moveTo(cx-60,cy-90); sg.lineTo(cx-30,cy-140); sg.lineTo(cx-10,cy-90); sg.closePath(); sg.fill();
-    sg.beginPath(); sg.moveTo(cx+60,cy-90); sg.lineTo(cx+30,cy-140); sg.lineTo(cx+10,cy-90); sg.closePath(); sg.fill();
-    sg.fillStyle='#0f172a'; sg.beginPath(); sg.arc(cx-25,cy-10,8,0,Math.PI*2); sg.fill();
-    sg.beginPath(); sg.arc(cx+25,cy-10,8,0,Math.PI*2); sg.fill();
-    sg.fillStyle='#ff9ec2'; sg.beginPath(); sg.arc(cx,cy+15,8,0,Math.PI*2); sg.fill();
-  }
-
-  function drawGeneric(){
-    clearSketch();
-    const W=sketch.width,H=sketch.height;
-    sg.fillStyle='#1f2937'; sg.font='24px system-ui';
-    sg.fillText('Let’s explore this together! ✨', 24, 48);
-    let t=0; function loop(){
-      t++; if(t%6===0){ sg.fillStyle='rgba(255,255,200,.5)'; const x=24+Math.random()*(W-48), y=60+Math.random()*(H-80); sg.beginPath(); sg.arc(x,y,6,0,Math.PI*2); sg.fill(); }
-      if(t<120) requestAnimationFrame(loop);
-    } loop();
-  }
-
-  function drawMiniSketchForQuestion(q){
-    q = (q||'').toLowerCase();
-    if (/(sky|blue|sun|سماء|شمس)/.test(q)) return drawSunSky();
-    if (/(rain|cloud|drop|مطر|سحابة)/.test(q)) return drawRainCloud();
-    if (/(rocket|space|star|صاروخ|فضاء)/.test(q)) return drawRocket();
-    if (/(plant|grow|seed|ورقة|نبات)/.test(q)) return drawPlant();
-    if (/(cat|dog|bunny|rabbit|bird|fish|قط|كلب|أرنب|طائر|سمكة)/.test(q)) return drawAnimal(q);
-    return drawGeneric();
-  }
-
-  // initial sketch blank
-  clearSketch();
-
-  // ---------- Book upload placeholder ----------
-  const bookFile = document.getElementById('bookFile');
-  const bookStatus = document.getElementById('bookStatus');
-  bookFile.addEventListener('change', (ev)=>{
-    const f = ev.target.files?.[0];
-    if(!f) return;
-    bookStatus.textContent = 'Loaded: ' + f.name + ' (book Q&A connects later)';
-  });
-
-  // ---------- Big Drawing Pad ----------
-  const board = document.getElementById('board');
-  const g = board.getContext('2d');
-  g.fillStyle='#fff'; g.fillRect(0,0,board.width,board.height); g.strokeStyle='#000'; g.lineWidth=8; g.lineCap='round'; g.lineJoin='round';
-  const color = document.getElementById('color'); const size = document.getElementById('size');
-  let drawing=false, erasing=false;
-  function ppos(ev){ const r=board.getBoundingClientRect(); return { x:(ev.clientX-r.left)*(board.width/r.width), y:(ev.clientY-r.top)*(board.height/r.height) }; }
-  board.addEventListener('pointerdown',ev=>{ drawing=true; const {x,y}=ppos(ev); g.beginPath(); g.moveTo(x,y); });
-  board.addEventListener('pointermove',ev=>{ if(!drawing) return; const {x,y}=ppos(ev); if(erasing){ g.clearRect(x-10,y-10,22,22);} else { g.lineTo(x,y); g.stroke(); } });
-  board.addEventListener('pointerup',()=> drawing=false);
-  document.getElementById('pen').onclick=()=>{ erasing=false; g.strokeStyle=color.value; g.lineWidth=+size.value; };
-  document.getElementById('eraser').onclick=()=>{ erasing=true; g.lineWidth=20; };
-  document.getElementById('clear').onclick=()=>{ g.fillStyle='#fff'; g.fillRect(0,0,board.width,board.height); g.fillStyle=color.value; };
-  color.addEventListener('input',()=> g.strokeStyle=color.value);
-  size.addEventListener('input',()=> g.lineWidth=+size.value);
-
-  // Auto-draw by name (simple shapes)
-  document.getElementById('drawIt').onclick=()=>{
-    const p=(document.getElementById('whatToDraw').value||'').toLowerCase();
-    const W=board.width,H=board.height; g.fillStyle='#fff'; g.fillRect(0,0,W,H);
-    if(/cat|قط/.test(p)) drawCat(g,W,H);
-    else if(/dog|كلب/.test(p)) drawDog(g,W,H);
-    else if(/bunny|rabbit|أرنب/.test(p)) drawBunny(g,W,H);
-    else if(/bird|طائر|عصفور/.test(p)) drawBird(g,W,H);
-    else if(/fish|سمكة/.test(p)) drawFish(g,W,H);
-    else{ g.fillStyle='#222'; g.font='20px system-ui'; g.fillText('Try: cat, dog, bunny, bird, fish', 20, 40); }
-  };
-
-  function drawCat(g,W,H){ const cx=W/2,cy=H/2+10; g.fillStyle='#fff2f7'; g.beginPath(); g.arc(cx,cy,90,0,Math.PI*2); g.fill();
-    g.fillStyle='#ffd6e7'; g.beginPath(); g.moveTo(cx-60,cy-90); g.lineTo(cx-30,cy-140); g.lineTo(cx-10,cy-90); g.closePath(); g.fill();
-    g.beginPath(); g.moveTo(cx+60,cy-90); g.lineTo(cx+30,cy-140); g.lineTo(cx+10,cy-90); g.closePath(); g.fill();
-    g.fillStyle='#0f172a'; g.beginPath(); g.arc(cx-25,cy-10,8,0,Math.PI*2); g.fill(); g.beginPath(); g.arc(cx+25,cy-10,8,0,Math.PI*2); g.fill();
-    g.fillStyle='#ff9ec2'; g.beginPath(); g.arc(cx,cy+15,8,0,Math.PI*2); g.fill(); }
-  function drawDog(g,W,H){ const cx=W/2,cy=H/2+10; g.fillStyle='#ffe8cc'; g.beginPath(); g.arc(cx,cy,90,0,Math.PI*2); g.fill();
-    g.fillStyle='#d9b38c'; g.beginPath(); g.arc(cx-65,cy-50,30,0,Math.PI*2); g.fill(); g.beginPath(); g.arc(cx+65,cy-50,30,0,Math.PI*2); g.fill();
-    g.fillStyle='#0f172a'; g.beginPath(); g.arc(cx-35,cy-10,10,0,Math.PI*2); g.fill(); g.beginPath(); g.arc(cx+35,cy-10,10,0,Math.PI*2); g.fill();
-    g.fillStyle='#ffadad'; g.beginPath(); g.arc(cx,cy+20,10,0,Math.PI*2); g.fill(); }
-  function drawBunny(g,W,H){ const cx=W/2,cy=H/2+20; g.fillStyle='#fff2f7'; g.beginPath(); g.arc(cx,cy,90,0,Math.PI*2); g.fill();
-    g.fillStyle='#ffd6e7'; g.fillRect(cx-60,cy-120,30,70); g.fillRect(cx+30,cy-120,30,70);
-    g.fillStyle='#0f172a'; g.beginPath(); g.arc(cx-30,cy-10,8,0,Math.PI*2); g.fill(); g.beginPath(); g.arc(cx+30,cy-10,8,0,Math.PI*2); g.fill();
-    g.fillStyle='#ff9ec2'; g.beginPath(); g.arc(cx,cy+15,8,0,Math.PI*2); g.fill(); }
-  function drawBird(g,W,H){ const cx=W/2,cy=H/2; g.fillStyle='#d0f0ff'; g.beginPath(); g.ellipse(cx,cy,80,60,0,0,Math.PI*2); g.fill();
-    g.fillStyle='#0f172a'; g.beginPath(); g.arc(cx+20,cy-10,6,0,Math.PI*2); g.fill();
-    g.fillStyle='#ffcc66'; g.beginPath(); g.moveTo(cx+50,cy); g.lineTo(cx+75,cy+10); g.lineTo(cx+50,cy+20); g.closePath(); g.fill(); }
-  function drawFish(g,W,H){ const cx=W/2,cy=H/2; g.fillStyle='#c8e6ff'; g.beginPath(); g.ellipse(cx,cy,100,50,0,Math.PI*2); g.fill();
-    g.fillStyle='#a5d8ff'; g.beginPath(); g.moveTo(cx-110,cy); g.lineTo(cx-140,cy-30); g.lineTo(cx-140,cy+30); g.closePath(); g.fill();
-    g.fillStyle='#0f172a'; g.beginPath(); g.arc(cx+40,cy-5,6,0,Math.PI*2); g.fill(); }
-  </script>
+// Cat family
+const catWrap=document.getElementById('catFamily');
+function cat(label,color){ return `<div class="cat-card"><div class="cat-label">${label}</div><svg class="cat" viewBox="0 0 120 120" width="86" height="86"><circle cx="60" cy="62" r="36" fill="${color}"/></svg></div>`;}
+catWrap.innerHTML=cat("Dad","#222")+cat("Mama","#f4b6d8")+cat("Baby","#ffdca8");
+</script>
 </body>
 </html>
