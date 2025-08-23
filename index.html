@@ -7,38 +7,36 @@
 
 <!-- Tailwind -->
 <script src="https://cdn.tailwindcss.com"></script>
-<!-- Tone.js (cute bleeps) -->
+<!-- Tone.js (bleeps) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.min.js"></script>
-<!-- ml5.js for DoodleNet drawing recognition -->
+<!-- ml5.js DoodleNet for Guess -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/ml5/0.12.2/ml5.min.js"></script>
 
 <style>
-  :root{
-    --ink:#f8fafc; --ink2:#e2e8f0; --brand:#f59e0b; --ring:rgba(255,255,255,.18);
-  }
+  :root{ --ink:#f8fafc; --ink2:#e2e8f0; --ring:rgba(255,255,255,.15); }
   body{
     margin:0; color:var(--ink);
     font-family: system-ui, ui-sans-serif, "Segoe UI", Roboto;
-    background: radial-gradient(1200px 600px at 80% -10%, #74a2ff 0%, transparent 45%),
+    background: radial-gradient(1100px 600px at 80% -10%, #74a2ff 0%, transparent 45%),
                 radial-gradient(800px 500px at 0% 0%, #5b6bff 0%, transparent 50%),
-                linear-gradient(135deg, #131a2c 0%, #1a2040 45%, #212a56 75%, #2d3b7c 100%);
+                linear-gradient(135deg, #141b2e 0%, #1b2242 45%, #26356e 75%, #314593 100%);
   }
   .card{ background:rgba(255,255,255,.08); border:1px solid var(--ring); backdrop-filter:blur(8px); border-radius:20px; }
   .btn{ background:#ffd54a; color:#0f172a; font-weight:800; border-radius:14px; padding:.65rem 1rem; box-shadow:0 6px 16px rgba(0,0,0,.15) }
-  .btn:hover{ filter:brightness(.98) }
   .btn-sec{ background:#0f172a; color:#fff; font-weight:700; border-radius:14px; padding:.55rem .9rem }
   .pill{ background:#0f172a; color:#fff; padding:.45rem .8rem; border-radius:999px; font-weight:800 }
-  .tag{ background:#1f2937; color:#fff; padding:.25rem .6rem; border-radius:999px; font-size:.85rem }
+  .tag{ background:#0f172a; color:#fff; padding:.25rem .6rem; border-radius:999px; font-size:.85rem }
   input[type="text"], input[type="color"], input[type="range"]{ border:1px solid rgba(255,255,255,.25) }
+  canvas{ touch-action:none }
 
-  /* Floating robot */
-  #mascot{ position:fixed; bottom:20px; right:20px; width:140px; height:140px; z-index:1000;
-           cursor:pointer; animation:floaty 6s ease-in-out infinite; }
+  /* Floating robot (no clipping, own box) */
+  #mascotWrap{ position:fixed; bottom:20px; right:20px; width:160px; height:160px; z-index:1000; pointer-events:auto }
+  #mascot{ width:160px; height:160px; cursor:pointer; animation:floaty 6s ease-in-out infinite; }
   @keyframes floaty{ 0%,100%{transform:translateY(0) rotate(-2deg)} 50%{transform:translateY(-10px) rotate(2deg)} }
 
-  /* Cats */
+  /* Cat family */
   .cat-wrap{ display:flex; gap:18px; align-items:flex-end }
-  .cat-card{ position:relative; width:86px; height:86px; cursor:pointer }
+  .cat-card{ position:relative; width:92px; height:92px; cursor:pointer }
   .cat-label{ position:absolute; top:-18px; left:50%; transform:translateX(-50%);
               background:#fff; color:#111; font-size:12px; padding:2px 8px; border-radius:999px }
 
@@ -46,67 +44,28 @@
   .sparkle{ position:absolute; width:10px; height:10px; border-radius:50%;
             pointer-events:none; background:radial-gradient(circle,#fff 0%,#ffe08a 55%,transparent 70%);
             animation:pop .9s ease-out forwards; filter:drop-shadow(0 0 6px #fff) drop-shadow(0 0 10px #ffd54a) }
-  @keyframes pop{ 0%{transform:translate(0,0) scale(.6);opacity:.9} 100%{transform:translate(var(--dx),var(--dy)) scale(0);opacity:0}}
+  @keyframes pop{ 0%{transform:translate(0,0) scale(.6);opacity:.9}
+                  100%{transform:translate(var(--dx),var(--dy)) scale(0);opacity:0} }
 
-  /* Sketch frame */
+  /* Mini‑sketch */
   .sketch-frame{ position:relative; border-radius:14px; overflow:hidden; border:2px dashed #5160ff }
   .sketch-label{ position:absolute; top:8px; left:8px; background:#0f172a; color:#fff;
                  padding:2px 8px; border-radius:999px; font-weight:800; font-size:.8rem }
 
-  /* Intro overlay */
-  #intro{ position:fixed; inset:0; background:linear-gradient(135deg,#2b2f63 0%, #293a81 60%, #5c7cff 100%);
-          z-index:2000; display:flex; align-items:center; justify-content:center; }
-  .intro-card{ width:min(950px,96vw); }
-  .intro-tiles>button{ background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.25); border-radius:16px; padding:16px; }
-  .intro-tiles>button:hover{ background:rgba(255,255,255,.18) }
-
-  canvas{ touch-action:none }
+  /* About + Dash dialogs (native <dialog>) */
+  dialog{ border:0; border-radius:16px; }
 </style>
 </head>
 <body>
-  <!-- Floating robot (click = About) -->
-  <div id="mascot" title="About Dad AI" aria-label="Robot">
-    <svg id="mascotSVG" viewBox="0 0 140 140" width="140" height="140">
-      <rect x="30" y="30" rx="14" ry="14" width="80" height="60" fill="#7dd3fc" stroke="#0f172a" stroke-width="3"/>
-      <circle cx="55" cy="58" r="8" fill="#fff"/><circle cx="85" cy="58" r="8" fill="#fff"/>
-      <circle id="eyeL2" cx="55" cy="58" r="3" fill="#0f172a"/><circle id="eyeR2" cx="85" cy="58" r="3" fill="#0f172a"/>
-      <line x1="70" y1="30" x2="70" y2="16" stroke="#0f172a" stroke-width="3"/>
-      <circle cx="70" cy="14" r="4" fill="#ef4444"/>
+  <!-- Floating robot (separate wrapper prevents clipping) -->
+  <div id="mascotWrap" aria-label="Robot">
+    <svg id="mascot" viewBox="0 0 160 160">
+      <rect x="42" y="44" rx="16" ry="16" width="76" height="56" fill="#7dd3fc" stroke="#0f172a" stroke-width="3"/>
+      <circle cx="64" cy="72" r="8" fill="#fff"/><circle cx="96" cy="72" r="8" fill="#fff"/>
+      <circle id="eyeL2" cx="64" cy="72" r="3" fill="#0f172a"/><circle id="eyeR2" cx="96" cy="72" r="3" fill="#0f172a"/>
+      <line x1="80" y1="44" x2="80" y2="26" stroke="#0f172a" stroke-width="3"/>
+      <circle cx="80" cy="24" r="5" fill="#ef4444"/>
     </svg>
-  </div>
-
-  <!-- Intro Overlay -->
-  <div id="intro">
-    <div class="intro-card card p-6 sm:p-8">
-      <div class="flex items-center gap-4">
-        <svg viewBox="0 0 140 140" width="100" height="100" class="shrink-0">
-          <rect x="30" y="30" rx="14" ry="14" width="80" height="60" fill="#7dd3fc" stroke="#0f172a" stroke-width="3"/>
-          <circle cx="55" cy="58" r="8" fill="#fff"/><circle cx="85" cy="58" r="8" fill="#fff"/>
-          <circle cx="55" cy="58" r="3" fill="#0f172a"/><circle cx="85" cy="58" r="3" fill="#0f172a"/>
-        </svg>
-        <div>
-          <div class="text-3xl font-black">Hi kids! I’m the <span class="text-yellow-300">Flying Robot</span> 🤖</div>
-          <div class="opacity-90">Welcome to <b>Dad AI</b> — ask questions, draw pictures, and quiz books!</div>
-        </div>
-      </div>
-      <div class="intro-tiles grid grid-cols-1 sm:grid-cols-3 gap-3 mt-6">
-        <button data-goto="ask">
-          <div class="font-extrabold">Ask</div>
-          <div class="opacity-80 text-sm">Ask anything — I’ll answer in a fun kid way!</div>
-        </button>
-        <button data-goto="draw">
-          <div class="font-extrabold">Drawing</div>
-          <div class="opacity-80 text-sm">Draw with the mouse, save PNG, or let me guess your doodle.</div>
-        </button>
-        <button data-goto="book">
-          <div class="font-extrabold">Book Q&A</div>
-          <div class="opacity-80 text-sm">Upload a text book; I’ll try to answer from it first.</div>
-        </button>
-      </div>
-      <div class="mt-6 flex justify-end">
-        <button id="introGo" class="btn">Let’s go!</button>
-      </div>
-    </div>
   </div>
 
   <!-- Header -->
@@ -145,14 +104,14 @@
           <div class="flex gap-2 items-stretch">
             <input id="question" class="flex-1 rounded-lg px-3 py-3 text-black"
                    placeholder="Why is the sky blue? / اكتب سؤالك هنا"/>
-            <button id="searchBtn" class="btn" title="Fun ping">🔍</button>
+            <button id="searchBtn" class="btn" title="Ping sparkles">🔍</button>
           </div>
-          <div class="mt-3 flex gap-2">
+          <div class="mt-3 flex flex-wrap gap-2">
             <button id="askBtn" class="btn">Ask!</button>
             <button id="readBtn" class="btn-sec">🔊 Read</button>
             <span class="tag">AI: <span id="aiStatus">loading…</span></span>
             <label class="btn-sec cursor-pointer ml-auto">
-              📄 Upload book
+              📄 Upload book (.txt)
               <input type="file" id="bookFile" accept=".txt" class="hidden"/>
             </label>
             <span id="bookStatus" class="tag">No book</span>
@@ -160,7 +119,7 @@
         </div>
       </div>
 
-      <!-- Right side: Answer -->
+      <!-- Right: Answer + mini sketch -->
       <div class="space-y-4">
         <div id="answerCard" class="card p-4 relative min-h-[220px]">
           <div class="text-sm opacity-90 mb-1">Your answer shows here…</div>
@@ -168,6 +127,13 @@
           <div class="mt-3 flex gap-2">
             <button id="askDad" class="btn-sec">📧 Ask Dad</button>
             <button id="clearAns" class="btn-sec">🧹 Clear</button>
+          </div>
+        </div>
+
+        <div class="card p-4">
+          <div class="sketch-frame">
+            <span class="sketch-label">Tiny doodle ✏️</span>
+            <canvas id="miniSketch" width="900" height="260" class="w-full bg-white rounded-md"></canvas>
           </div>
         </div>
       </div>
@@ -200,8 +166,8 @@
     <form method="dialog">
       <div class="px-5 py-3 border-b font-extrabold">About Dad AI</div>
       <div class="p-5 space-y-3">
-        <p>👋 Hi! On Dad AI you can ask questions, get sparkly answers, draw fun things,
-           and upload simple text books for Q&A.</p>
+        <p>👋 Hi! On Dad AI you can ask questions, get sparkly answers with a tiny sketch,
+           draw fun things, and upload text books for Q&A.</p>
         <p>Click the robot or any cat to open this again.</p>
       </div>
       <div class="px-5 py-3 border-t flex justify-end"><button class="btn-sec">Close</button></div>
@@ -228,71 +194,59 @@
 
 <script>
 /* ===========================
-   CONFIG: Gemini API Key
+   CONFIG
    =========================== */
-const GEMINI_KEY = "AIzaSyDdG9ozT6-il9J0toab_HFLZPQIau_sb0g"; // put your key; for production, proxy via Worker
-const DAD_EMAIL = "ahmadkhader65@gmail.com";
+const GEMINI_KEY = "AIzaSyDdG9ozT6-il9J0toab_HFLZPQIau_sb0g";   // Replace with your key (or proxy via Worker)
+const SEND_MAIL_API = "/api/send-email";           // Cloudflare Worker endpoint
+const DAD_EMAIL_FALLBACK = "ahmadkhader65@gmail.com";
 
-/* ====== Utilities ====== */
-const $ = sel => document.querySelector(sel);
+/* ====== Helpers ====== */
+const $ = s => document.querySelector(s);
 function speak(text, lang='en'){
   try{
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = (lang==='ar' ? 'ar-SA' : 'en-US');
-    const v = speechSynthesis.getVoices().find(v=>v.lang===u.lang) || speechSynthesis.getVoices()[0];
-    if (v) u.voice = v; u.pitch = 1.12; u.rate = 0.98;
-    speechSynthesis.cancel(); speechSynthesis.speak(u);
+    const u=new SpeechSynthesisUtterance(text);
+    u.lang=(lang==='ar'?'ar-SA':'en-US'); u.pitch=1.12; u.rate=0.98;
+    const v=speechSynthesis.getVoices().find(v=>v.lang===u.lang)||speechSynthesis.getVoices()[0];
+    if(v) u.voice=v; speechSynthesis.cancel(); speechSynthesis.speak(u);
   }catch{}
 }
-function sparkleBurst(container, n=24){
+function sparkle(container, n=24){
   const r=container.getBoundingClientRect();
   for(let i=0;i<n;i++){
-    const s=document.createElement('div'); s.className='sparkle';
-    s.style.left=Math.random()*r.width+'px';
-    s.style.top=(r.height*0.35 + Math.random()*r.height*0.4)+'px';
-    s.style.setProperty('--dx',(Math.random()*160-80)+'px');
-    s.style.setProperty('--dy',(-40-Math.random()*140)+'px');
-    container.appendChild(s); setTimeout(()=>s.remove(),900);
+    const d=document.createElement('div'); d.className='sparkle';
+    d.style.left=(Math.random()*r.width)+'px';
+    d.style.top=(r.height*0.35 + Math.random()*r.height*0.4)+'px';
+    d.style.setProperty('--dx',(Math.random()*160-80)+'px');
+    d.style.setProperty('--dy',(-40-Math.random()*140)+'px');
+    container.appendChild(d); setTimeout(()=>d.remove(),900);
   }
 }
 function saveLog(entry){
-  const key='dad-ai-log';
-  const arr=JSON.parse(localStorage.getItem(key)||'[]'); arr.unshift(entry);
-  localStorage.setItem(key, JSON.stringify(arr.slice(0,200)));
+  const k='dad-ai-log'; const a=JSON.parse(localStorage.getItem(k)||'[]'); a.unshift(entry);
+  localStorage.setItem(k, JSON.stringify(a.slice(0,200)));
 }
 function loadLog(){ return JSON.parse(localStorage.getItem('dad-ai-log')||'[]'); }
 
-/* ====== Intro Overlay ====== */
-$('#introGo').onclick = () => $('#intro').style.display='none';
-document.querySelectorAll('#intro [data-goto]').forEach(b=>{
-  b.onclick=()=>{
-    $('#intro').style.display='none';
-    const m=b.getAttribute('data-goto');
-    setMode(m==='draw'?'ask':m); // ask/story/book (drawing panel is visible on main)
-  };
-});
-
-/* ====== Robot & Cats ====== */
+/* ===== Robot & Cats (no clipping) ===== */
 document.body.addEventListener('pointermove',(e)=>{
-  const svg = $('#mascotSVG'); if(!svg) return;
+  const svg=$('#mascot'); if(!svg) return;
   const r=svg.getBoundingClientRect(), cx=r.left+r.width/2, cy=r.top+r.height/2;
   const dx=(e.clientX-cx)/r.width, dy=(e.clientY-cy)/r.height;
   const mx=Math.max(-1,Math.min(1,dx))*4, my=Math.max(-1,Math.min(1,dy))*4;
-  svg.querySelectorAll('#eyeL2,#eyeR2').forEach(p=>p.setAttribute('transform',`translate(${mx},${my})`));
+  ['eyeL2','eyeR2'].forEach(id=>svg.getElementById?.(id)?.setAttribute('transform',`translate(${mx},${my})`));
 });
-$('#mascot').onclick = ()=> $('#aboutDlg').showModal();
+$('#mascotWrap').onclick=()=>$('#aboutDlg').showModal();
 
-function catSVG(label, color){
+function catSVG(label, base){
   return `<div class="cat-card" data-open-about="1">
     <div class="cat-label">${label}</div>
-    <svg class="cat" viewBox="0 0 120 120" width="86" height="86" role="img">
-      <path d="M30 40 L48 18 L52 44 Z" fill="${color}"/>
-      <path d="M90 40 L72 18 L68 44 Z" fill="${color}"/>
-      <circle cx="60" cy="62" r="36" fill="${color}"/>
+    <svg class="cat" viewBox="0 0 120 120" width="92" height="92" role="img">
+      <path d="M30 40 L48 18 L52 44 Z" fill="${base}"/>
+      <path d="M90 40 L72 18 L68 44 Z" fill="${base}"/>
+      <circle cx="60" cy="62" r="36" fill="${base}"/>
       <circle cx="46" cy="56" r="8" fill="#fff"/><circle cx="74" cy="56" r="8" fill="#fff"/>
       <circle class="pL" cx="46" cy="56" r="4" fill="#0f172a"/><circle class="pR" cx="74" cy="56" r="4" fill="#0f172a"/>
-    </svg>
-  </div>`;
+    </svg></div>`;
 }
 $('#catFamily').innerHTML = catSVG('Dad','#0f172a') + catSVG('Mama','#f4b6d8') + catSVG('Baby','#ffdca8');
 $('#catFamily').addEventListener('click',e=>{ if(e.target.closest('[data-open-about]')) $('#aboutDlg').showModal(); });
@@ -305,82 +259,136 @@ document.body.addEventListener('pointermove',e=>{
   });
 });
 
-/* ====== Tabs / Modes ====== */
-let mode='ask'; // 'ask' | 'story' | 'book'
+/* ===== Tabs ===== */
+let mode='ask';
 function setMode(m){ mode=m; document.querySelectorAll('[data-mode]').forEach(b=>{
-  b.classList.toggle('bg-white', b.getAttribute('data-mode')===mode);
-  b.classList.toggle('text-black', b.getAttribute('data-mode')===mode);
+  const on=b.getAttribute('data-mode')===mode;
+  b.style.background=on?'#fff':'#0f172a'; b.style.color=on?'#000':'#fff';
 });}
 document.querySelectorAll('[data-mode]').forEach(b=> b.onclick=()=>setMode(b.getAttribute('data-mode')));
 setMode('ask');
 
-/* ====== Gemini ====== */
+/* ===== Gemini ===== */
 $('#aiStatus').textContent = (!GEMINI_KEY || GEMINI_KEY==="AIzaSyDdG9ozT6-il9J0toab_HFLZPQIau_sb0g") ? "key missing (demo)" : "ready ✅";
-async function callGemini(prompt){
+async function callGemini(text){
   if(!GEMINI_KEY || GEMINI_KEY==="AIzaSyDdG9ozT6-il9J0toab_HFLZPQIau_sb0g") return null;
   try{
-    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`,{
+    const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`,{
       method:"POST", headers:{ "Content-Type":"application/json" },
-      body: JSON.stringify({ contents:[{ parts:[{ text: prompt }]}] })
+      body: JSON.stringify({ contents:[{ parts:[{ text }]}] })
     });
-    const j = await r.json();
+    const j=await r.json();
     return j.candidates?.[0]?.content?.parts?.[0]?.text || null;
-  }catch(e){ console.warn(e); return null; }
+  }catch{ return null; }
 }
 
-/* ====== Ask flow ====== */
-let bookText = "";
-$('#bookFile').addEventListener('change', async (ev)=>{
+/* ===== Mini‑sketch ===== */
+const sketch=$('#miniSketch'), sg=sketch.getContext('2d');
+function clearSketch(){ sg.fillStyle='#fff'; sg.fillRect(0,0,sketch.width,sketch.height); }
+function drawSunSky(){ clearSketch(); const W=sketch.width,H=sketch.height;
+  const g=sg.createLinearGradient(0,0,0,H); g.addColorStop(0,'#bde0ff'); g.addColorStop(1,'#eaf6ff');
+  let t=0; (function loop(){ t+=0.02; sg.fillStyle=g; sg.fillRect(0,0,W,H);
+    sg.fillStyle='#f0fbdd'; sg.fillRect(0,H*0.82,W,H);
+    const cx=W*0.15, y=H*0.8-Math.sin(t)*80, r=40+Math.sin(t)*4;
+    const rad=sg.createRadialGradient(cx,y,2,cx,y,r); rad.addColorStop(0,'#fff59d'); rad.addColorStop(1,'#ffde59');
+    sg.fillStyle=rad; sg.beginPath(); sg.arc(cx,y,r,0,Math.PI*2); sg.fill(); if(t<Math.PI*2) requestAnimationFrame(loop); })(); }
+function drawRainCloud(){ clearSketch(); const W=sketch.width,H=sketch.height; sg.fillStyle='#e8f2ff'; sg.fillRect(0,0,W,H);
+  const cx=W*0.5, cy=H*0.4; sg.fillStyle='#d7e4f5';
+  [[cx-80,cy],[cx-40,cy-20],[cx,cy],[cx+40,cy-15],[cx+80,cy]].forEach(([x,y],i)=>{ sg.beginPath(); sg.arc(x,y, i%2?40:46,0,Math.PI*2); sg.fill(); });
+  let drops=Array.from({length:30},()=>({x:Math.random()*W, y:H*0.45+Math.random()*40, s:2+Math.random()*3}));
+  (function loop(){ sg.fillStyle='rgba(255,255,255,.2)'; sg.fillRect(0,H*0.45,W,H*0.55);
+    sg.strokeStyle='#7fb6ff'; sg.lineWidth=2; drops.forEach(d=>{ sg.beginPath(); sg.moveTo(d.x,d.y); sg.lineTo(d.x,d.y+d.s*5); sg.stroke(); d.y+=d.s*2; if(d.y>H) d.y=H*0.5; });
+    requestAnimationFrame(loop); })(); }
+function drawRocket(){ clearSketch(); const W=sketch.width,H=sketch.height; let t=0;(function loop(){
+  sg.fillStyle='#0b1020'; sg.fillRect(0,0,W,H); sg.fillStyle='#fff'; for(let i=0;i<30;i++){ sg.fillRect(Math.random()*W,Math.random()*H,1,1); }
+  const x=W*0.15+t*3, y=H*0.75-t*2; sg.save(); sg.translate(x,y); sg.rotate(-Math.PI/7);
+  sg.fillStyle='#c7e9ff'; sg.fillRect(-20,-10,60,20); sg.fillStyle='#ef4444'; sg.beginPath(); sg.moveTo(40,0); sg.lineTo(60,-12); sg.lineTo(60,12); sg.fill();
+  sg.fillStyle='#60a5fa'; sg.beginPath(); sg.arc(-5,0,8,0,Math.PI*2); sg.fill(); sg.fillStyle='#ffd54a'; sg.beginPath(); sg.moveTo(-20,0); sg.lineTo(-35,-6); sg.lineTo(-35,6); sg.fill(); sg.restore();
+  t+=1.2; if(x<W+60) requestAnimationFrame(loop); })(); }
+function drawPlant(){ clearSketch(); const W=sketch.width,H=sketch.height; sg.fillStyle='#e9f7ff'; sg.fillRect(0,0,W,H);
+  sg.fillStyle='#b57c4a'; sg.fillRect(0,H*0.7,W,H*0.3); let t=0;(function loop(){ t+=0.02;
+    const h=Math.min(120,t*120); sg.fillStyle='#e9f7ff'; sg.fillRect(0,0,W,H*0.7); sg.fillStyle='#b57c4a'; sg.fillRect(0,H*0.7,W,H*0.3);
+    sg.strokeStyle='#4caf50'; sg.lineWidth=6; sg.beginPath(); sg.moveTo(W*0.5,H*0.7); sg.lineTo(W*0.5,H*0.7-h); sg.stroke();
+    sg.fillStyle='#7ad957'; sg.beginPath(); sg.ellipse(W*0.5-18,H*0.7-h+20,24,10,-.6,0,2*Math.PI); sg.fill();
+    sg.beginPath(); sg.ellipse(W*0.5+18,H*0.7-h+40,24,10,.6,0,2*Math.PI); sg.fill(); if(h<120) requestAnimationFrame(loop); })(); }
+function drawAnimal(){ clearSketch(); const W=sketch.width,H=sketch.height,cx=W/2,cy=H/2+10;
+  sg.fillStyle='#fff0f6'; sg.beginPath(); sg.arc(cx,cy,90,0,2*Math.PI); sg.fill();
+  sg.fillStyle='#ffd6e7'; sg.beginPath(); sg.moveTo(cx-60,cy-90); sg.lineTo(cx-30,cy-140); sg.lineTo(cx-10,cy-90); sg.fill();
+  sg.beginPath(); sg.moveTo(cx+60,cy-90); sg.lineTo(cx+30,cy-140); sg.lineTo(cx+10,cy-90); sg.fill();
+  sg.fillStyle='#0f172a'; sg.beginPath(); sg.arc(cx-25,cy-10,8,0,2*Math.PI); sg.fill(); sg.beginPath(); sg.arc(cx+25,cy-10,8,0,2*Math.PI); sg.fill();
+  sg.fillStyle='#ff9ec2'; sg.beginPath(); sg.arc(cx,cy+15,8,0,2*Math.PI); sg.fill(); }
+function drawGeneric(){ clearSketch(); sg.fillStyle='#1f2937'; sg.font='24px system-ui';
+  sg.fillText('Let’s explore this together! ✨', 24, 48); }
+
+function sketchForQuestion(q){
+  q=(q||'').toLowerCase();
+  if (/(sky|blue|sun|سماء|شمس)/.test(q)) return drawSunSky();
+  if (/(rain|cloud|drop|مطر|سحابة)/.test(q)) return drawRainCloud();
+  if (/(rocket|space|star|صاروخ|فضاء)/.test(q)) return drawRocket();
+  if (/(plant|grow|seed|ورقة|نبات)/.test(q)) return drawPlant();
+  if (/(cat|dog|bunny|rabbit|bird|fish|قط|كلب|أرنب|طائر|سمكة)/.test(q)) return drawAnimal();
+  return drawGeneric();
+}
+clearSketch();
+
+/* ===== Ask flow ===== */
+let bookText=""; // simple .txt support
+$('#bookFile').addEventListener('change', async ev=>{
   const f=ev.target.files?.[0]; if(!f) return;
-  if(!f.name.endsWith('.txt')){ $('#bookStatus').textContent='Text only (.txt) for now'; return; }
-  const txt = await f.text(); bookText = txt; $('#bookStatus').textContent = 'Loaded: '+f.name;
+  if(!f.name.endsWith('.txt')){ $('#bookStatus').textContent='Text only (.txt)'; return; }
+  bookText = await f.text(); $('#bookStatus').textContent='Loaded: '+f.name;
 });
+$('#searchBtn').onclick = ()=> sparkle($('#answerCard'));
 
 $('#askBtn').onclick = async ()=>{
-  const q = $('#question').value.trim();
-  if(!q){ $('#answer').textContent="Please type something to ask 😊"; return; }
-
-  const kid = $('#kidName').value.trim() || 'friend';
-  const isAr = /[اأ-ي]/.test(q);
-  const style = isAr
+  const q=$('#question').value.trim();
+  if(!q){ $('#answer').textContent="Please type a question 😊"; return; }
+  const kid=$('#kidName').value.trim()||'friend';
+  const ar=/[اأ-ي]/.test(q); const style=ar
     ? "أجب كأب لطيف لطفل صغير. اجعل الجمل قصيرة وبسيطة وممتعة."
     : "Answer like a playful dad for a child. Use short, kind, simple sentences.";
-  let first='';
-
-  // Prefer book text if relevant
-  if (bookText) {
-    const sentences = bookText.split(/(?<=[\.\!\?])\s+/).slice(0,3000);
-    const key = q.toLowerCase().split(/\s+/).filter(w=>w.length>3);
-    const scored = sentences.map(s=>{
-      const l=s.toLowerCase(); let score=0; key.forEach(k=>{ if(l.includes(k)) score++; }); return {s,score};
-    }).sort((a,b)=>b.score-a.score);
-    const top = scored.filter(x=>x.score>0).slice(0,3).map(x=>x.s).join(' ');
-    if (top) first = (isAr ? "من كتابك: " : "From your book: ") + top + "\n\n";
+  let context='';
+  if(bookText){
+    const sents=bookText.split(/(?<=[\.\!\?])\s+/).slice(0,2500);
+    const keys=q.toLowerCase().split(/\s+/).filter(w=>w.length>3);
+    const best=sents.map(s=>({s,score:keys.reduce((a,k)=>a+(s.toLowerCase().includes(k)?1:0),0)}))
+                    .sort((a,b)=>b.score-a.score).filter(x=>x.score>0).slice(0,3).map(x=>x.s).join(' ');
+    if(best) context=(ar?"من كتابك: ":"From your book: ")+best+"\n\n";
   }
+  $('#answer').textContent="Thinking… 🤔";
+  const prompt=`${style}\n\nQuestion: ${q}\nChild name: ${kid}\n${context?`Helpful context:\n${context}`:''}`;
+  let ans=await callGemini(prompt);
+  if(!ans) ans = ar ? `سؤال رائع يا ${kid}! لنفكر فيه معًا.` : `Great question, ${kid}! Let’s explore it together.`;
 
-  $('#answer').textContent = "Thinking… 🤔";
-  const prompt = `${style}\n\nQuestion: ${q}\n\nChild name: ${kid}\n${first? `\nHelpful context:\n${first}\n`:''}`;
-  let ans = await callGemini(prompt);
-  if(!ans){
-    ans = isAr ? `سؤال رائع يا ${kid}! دعنا نفكر فيه معًا.` : `Great question, ${kid}! Let’s explore it together.`;
-  }
-
-  $('#answer').textContent = ans;
-  sparkleBurst($('#answerCard'));
+  $('#answer').textContent=ans; sparkle($('#answerCard'));
   try{ const s=new Tone.Synth().toDestination(); Tone.start().then(()=> s.triggerAttackRelease('C6','8n')); }catch{}
+  speak(ans, ar?'ar':'en');
+  sketchForQuestion(q);
   saveLog({t:new Date().toLocaleString(), kid, mode, q, ans});
 };
 $('#readBtn').onclick = ()=> speak($('#answer').textContent, (/[اأ-ي]/.test($('#answer').textContent)?'ar':'en'));
-$('#searchBtn').onclick = ()=> sparkleBurst($('#answerCard'));
-$('#askDad').onclick = ()=>{
-  const subj = encodeURIComponent("Dad AI — help me please!");
-  const body = encodeURIComponent(`Kid: ${$('#kidName').value}\nMode: ${mode}\nQuestion: ${$('#question').value}\nAnswer: ${$('#answer').textContent}`);
-  window.location.href = `mailto:${DAD_EMAIL}?subject=${subj}&body=${body}`;
-};
-$('#clearAns').onclick = ()=> $('#answer').textContent='';
+$('#clearAns').onclick = ()=> { $('#answer').textContent=''; clearSketch(); };
 
-/* ====== Dashboard ====== */
-$('#dashBtn').onclick = ()=>{
+/* ===== Ask Dad — send email via Worker ===== */
+$('#askDad').onclick = async ()=>{
+  const payload = {
+    to: DAD_EMAIL_FALLBACK,             // server will override if env set
+    subject: "Dad AI — kid needs help",
+    text: `Kid: ${$('#kidName').value || ''}\nMode: ${mode}\nQuestion: ${$('#question').value}\nAnswer: ${$('#answer').textContent}`
+  };
+  try{
+    const r=await fetch(SEND_MAIL_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    if(!r.ok) throw new Error('send failed');
+    alert('Sent to Dad! ✅');
+  }catch(e){
+    alert('Could not send from the browser. Please ask your Worker admin to set MAIL_FROM_DOMAIN & DAD_EMAIL. As a fallback, it will open your mail client.');
+    const subj=encodeURIComponent(payload.subject), body=encodeURIComponent(payload.text);
+    location.href=`mailto:${payload.to}?subject=${subj}&body=${body}`;
+  }
+};
+
+/* ===== Dashboard ===== */
+$('#dashBtn').onclick=()=>{
   const rows = loadLog().map(r=>`<tr>
     <td class="p-2">${r.t||''}</td>
     <td class="p-2">${r.kid||''}</td>
@@ -388,18 +396,17 @@ $('#dashBtn').onclick = ()=>{
     <td class="p-2">${(r.q||'').replace(/</g,'&lt;')}</td>
     <td class="p-2">${(r.ans||'').replace(/</g,'&lt;')}</td>
   </tr>`).join('') || `<tr><td class="p-2" colspan="5">No data yet</td></tr>`;
-  $('#dashRows').innerHTML = rows;
-  $('#dashDlg').showModal();
+  $('#dashRows').innerHTML=rows; $('#dashDlg').showModal();
 };
 
-/* ====== Drawing Pad ====== */
+/* ===== Drawing Pad ===== */
 const board=$('#board'), g=board.getContext('2d');
 g.fillStyle='#fff'; g.fillRect(0,0,board.width,board.height);
 g.lineCap='round'; g.lineJoin='round'; g.strokeStyle='#000'; g.lineWidth=10;
 let drawing=false, erasing=false;
-function pos(ev){ const r=board.getBoundingClientRect(); return { x:(ev.clientX-r.left)*(board.width/r.width), y:(ev.clientY-r.top)*(board.height/r.height) }; }
-board.addEventListener('pointerdown',ev=>{ drawing=true; const p=pos(ev); g.beginPath(); g.moveTo(p.x,p.y); });
-board.addEventListener('pointermove',ev=>{ if(!drawing) return; const p=pos(ev); if(erasing){ g.clearRect(p.x-10,p.y-10,22,22);} else { g.lineTo(p.x,p.y); g.stroke(); }});
+function p(ev){ const r=board.getBoundingClientRect(); return { x:(ev.clientX-r.left)*(board.width/r.width), y:(ev.clientY-r.top)*(board.height/r.height) }; }
+board.addEventListener('pointerdown',ev=>{ drawing=true; const m=p(ev); g.beginPath(); g.moveTo(m.x,m.y); });
+board.addEventListener('pointermove',ev=>{ if(!drawing) return; const m=p(ev); if(erasing){ g.clearRect(m.x-12,m.y-12,24,24);} else { g.lineTo(m.x,m.y); g.stroke(); } });
 board.addEventListener('pointerup',()=> drawing=false);
 $('#pen').onclick=()=>{ erasing=false; g.strokeStyle=$('#color').value; g.lineWidth=+$('#size').value; };
 $('#eraser').onclick=()=>{ erasing=true; g.lineWidth=24; };
@@ -408,24 +415,26 @@ $('#save').onclick=()=>{ const a=document.createElement('a'); a.download='drawin
 $('#color').oninput=()=> g.strokeStyle=$('#color').value;
 $('#size').oninput=()=> g.lineWidth=+$('#size').value;
 
-/* Guess with ml5 DoodleNet */
+/* Guess with ml5 DoodleNet (robust) */
 let doodleNet=null;
 ml5.DoodleNet().then(net=>{ doodleNet=net; $('#drawAI').textContent='ready ✅'; })
 .catch(()=> $('#drawAI').textContent='error');
-$('#guess').onclick = ()=>{
+$('#guess').onclick=()=>{
   if(!doodleNet){ $('#guessOut').textContent='AI not ready'; return; }
-  const temp = document.createElement('canvas'); temp.width=256; temp.height=256;
-  const tg=temp.getContext('2d'); tg.drawImage(board, 0,0,256,256);
-  doodleNet.classify(temp, (err,res)=>{
-    if(err){ $('#guessOut').textContent='error'; return; }
-    const top=res.slice(0,3).map(r=>`${r.label} (${(r.confidence*100|0)}%)`).join(' • ');
-    $('#guessOut').textContent = top;
-  });
+  try{
+    // Scale to 256x256 offscreen to avoid taint & speed
+    const tmp=document.createElement('canvas'); tmp.width=256; tmp.height=256;
+    tmp.getContext('2d').drawImage(board,0,0,256,256);
+    doodleNet.classify(tmp,(err,res)=>{
+      if(err){ $('#guessOut').textContent='error'; return; }
+      $('#guessOut').textContent = res.slice(0,3).map(r=>`${r.label} (${(r.confidence*100|0)}%)`).join(' • ');
+    });
+  }catch{ $('#guessOut').textContent='error'; }
 };
 
-/* Auto draw simple shapes by name */
+/* Draw by name */
 $('#drawIt').onclick=()=>{
-  const p = ($('#whatToDraw').value||'').toLowerCase();
+  const p=($('#whatToDraw').value||'').toLowerCase();
   const W=board.width,H=board.height; g.fillStyle='#fff'; g.fillRect(0,0,W,H);
   if(/cat|قط/.test(p)) drawCat(); else if(/dog|كلب/.test(p)) drawDog();
   else if(/bunny|rabbit|أرنب/.test(p)) drawBunny(); else if(/bird|طائر/.test(p)) drawBird();
@@ -435,42 +444,42 @@ $('#drawIt').onclick=()=>{
     g.fillStyle='#222'; g.font='24px system-ui'; g.fillText('Try: cat, dog, bunny, bird, fish, rocket, sun, cloud, plant', 22, 40);
   }
 };
-function baseFace(cx,cy,r){ g.fillStyle='#ffe9f4'; g.beginPath(); g.arc(cx,cy,r,0,Math.PI*2); g.fill(); }
-function eyes(cx1,cy1,cx2,cy2){ g.fillStyle='#222'; g.beginPath(); g.arc(cx1,cy1,12,0,Math.PI*2); g.fill(); g.beginPath(); g.arc(cx2,cy2,12,0,Math.PI*2); g.fill(); }
-function nose(cx,cy){ g.fillStyle='#ff9ec2'; g.beginPath(); g.arc(cx,cy,10,0,Math.PI*2); g.fill(); }
-function drawCat(){ const cx=board.width/2, cy=board.height/2+20; baseFace(cx,cy,120);
-  g.fillStyle='#ffc6de'; g.beginPath(); g.moveTo(cx-90,cy-120); g.lineTo(cx-40,cy-190); g.lineTo(cx-20,cy-120); g.fill();
-  g.beginPath(); g.moveTo(cx+90,cy-120); g.lineTo(cx+40,cy-190); g.lineTo(cx+20,cy-120); g.fill();
-  eyes(cx-40,cy-10,cx+40,cy-10); nose(cx,cy+20); }
-function drawDog(){ const cx=board.width/2, cy=board.height/2+20; baseFace(cx,cy,120);
-  g.fillStyle='#e6c39d'; g.beginPath(); g.arc(cx-100,cy-60,60,0,Math.PI*2); g.fill(); g.beginPath(); g.arc(cx+100,cy-60,60,0,Math.PI*2); g.fill();
-  eyes(cx-50,cy-10,cx+50,cy-10); nose(cx,cy+25); }
-function drawBunny(){ const cx=board.width/2, cy=board.height/2+20; baseFace(cx,cy,120);
-  g.fillStyle='#ffd6e7'; g.fillRect(cx-60,cy-200,40,120); g.fillRect(cx+20,cy-200,40,120);
-  eyes(cx-40,cy-10,cx+40,cy-10); nose(cx,cy+20); }
+function face(cx,cy,r){ g.fillStyle='#ffe9f4'; g.beginPath(); g.arc(cx,cy,r,0,2*Math.PI); g.fill(); }
+function eyes(cx1,cy1,cx2,cy2){ g.fillStyle='#222'; g.beginPath(); g.arc(cx1,cy1,14,0,2*Math.PI); g.fill(); g.beginPath(); g.arc(cx2,cy2,14,0,2*Math.PI); g.fill(); }
+function nose(cx,cy){ g.fillStyle='#ff9ec2'; g.beginPath(); g.arc(cx,cy,12,0,2*Math.PI); g.fill(); }
+function drawCat(){ const cx=board.width/2, cy=board.height/2+20; face(cx,cy,130);
+  g.fillStyle='#ffc6de'; g.beginPath(); g.moveTo(cx-96,cy-130); g.lineTo(cx-48,cy-200); g.lineTo(cx-22,cy-130); g.fill();
+  g.beginPath(); g.moveTo(cx+96,cy-130); g.lineTo(cx+48,cy-200); g.lineTo(cx+22,cy-130); g.fill();
+  eyes(cx-44,cy-10,cx+44,cy-10); nose(cx,cy+24); }
+function drawDog(){ const cx=board.width/2, cy=board.height/2+20; face(cx,cy,130);
+  g.fillStyle='#e6c39d'; g.beginPath(); g.arc(cx-110,cy-60,70,0,2*Math.PI); g.fill(); g.beginPath(); g.arc(cx+110,cy-60,70,0,2*Math.PI); g.fill();
+  eyes(cx-54,cy-10,cx+54,cy-10); nose(cx,cy+26); }
+function drawBunny(){ const cx=board.width/2, cy=board.height/2+20; face(cx,cy,130);
+  g.fillStyle='#ffd6e7'; g.fillRect(cx-60,cy-210,46,130); g.fillRect(cx+14,cy-210,46,130);
+  eyes(cx-44,cy-10,cx+44,cy-10); nose(cx,cy+22); }
 function drawBird(){ const cx=board.width/2, cy=board.height/2; g.fillStyle='#caf0ff';
-  g.beginPath(); g.ellipse(cx,cy,160,110,0,0,Math.PI*2); g.fill();
-  eyes(cx+20,cy-10,cx+60,cy-10); g.fillStyle='#ffd54a'; g.beginPath(); g.moveTo(cx+120,cy); g.lineTo(cx+170,cy+20); g.lineTo(cx+120,cy+40); g.fill(); }
+  g.beginPath(); g.ellipse(cx,cy,200,130,0,0,2*Math.PI); g.fill();
+  eyes(cx+30,cy-10,cx+70,cy-10); g.fillStyle='#ffd54a'; g.beginPath(); g.moveTo(cx+150,cy); g.lineTo(cx+200,cy+20); g.lineTo(cx+150,cy+40); g.fill(); }
 function drawFish(){ const cx=board.width/2, cy=board.height/2; g.fillStyle='#c8e6ff';
-  g.beginPath(); g.ellipse(cx,cy,200,100,0,0,Math.PI*2); g.fill();
-  g.fillStyle='#a5d8ff'; g.beginPath(); g.moveTo(cx-210,cy); g.lineTo(cx-270,cy-70); g.lineTo(cx-270,cy+70); g.fill();
-  eyes(cx+80,cy-5,cx+120,cy-5); }
-function drawRocket(){ const cx=board.width/2-120, cy=board.height/2+60;
+  g.beginPath(); g.ellipse(cx,cy,240,120,0,0,2*Math.PI); g.fill();
+  g.fillStyle='#a5d8ff'; g.beginPath(); g.moveTo(cx-250,cy); g.lineTo(cx-320,cy-80); g.lineTo(cx-320,cy+80); g.fill();
+  eyes(cx+100,cy-5,cx+140,cy-5); }
+function drawRocket(){ const cx=board.width/2-160, cy=board.height/2+60;
   g.fillStyle='#0b1020'; g.fillRect(0,0,board.width,board.height);
-  g.fillStyle='#fff'; for(let i=0;i<70;i++){ g.fillRect(Math.random()*board.width,Math.random()*board.height,2,2); }
+  g.fillStyle='#fff'; for(let i=0;i<90;i++){ g.fillRect(Math.random()*board.width,Math.random()*board.height,2,2); }
   g.save(); g.translate(cx,cy); g.rotate(-Math.PI/7);
-  g.fillStyle='#c7e9ff'; g.fillRect(-60,-28,180,56);
-  g.fillStyle='#ef4444'; g.beginPath(); g.moveTo(120,0); g.lineTo(160,-26); g.lineTo(160,26); g.fill();
-  g.fillStyle='#60a5fa'; g.beginPath(); g.arc(20,0,24,0,Math.PI*2); g.fill();
-  g.fillStyle='#ffd54a'; g.beginPath(); g.moveTo(-60,0); g.lineTo(-95,-16); g.lineTo(-95,16); g.fill(); g.restore(); }
+  g.fillStyle='#c7e9ff'; g.fillRect(-80,-34,220,68);
+  g.fillStyle='#ef4444'; g.beginPath(); g.moveTo(140,0); g.lineTo(190,-28); g.lineTo(190,28); g.fill();
+  g.fillStyle='#60a5fa'; g.beginPath(); g.arc(10,0,30,0,2*Math.PI); g.fill();
+  g.fillStyle='#ffd54a'; g.beginPath(); g.moveTo(-80,0); g.lineTo(-120,-18); g.lineTo(-120,18); g.fill(); g.restore(); }
 function drawSun(){ g.fillStyle='#bde0ff'; g.fillRect(0,0,board.width,board.height); g.fillStyle='#ffde59';
-  g.beginPath(); g.arc(180,140,100,0,Math.PI*2); g.fill(); }
+  g.beginPath(); g.arc(220,160,120,0,2*Math.PI); g.fill(); }
 function drawCloud(){ g.fillStyle='#e8f2ff'; g.fillRect(0,0,board.width,board.height); g.fillStyle='#d7e4f5';
-  const cx=board.width/2, cy=board.height/2-40; [ -160,-80,0,80,160 ].forEach((dx,i)=>{ g.beginPath(); g.arc(cx+dx,cy+(i%2? -20:0), i%2?100:120,0,Math.PI*2); g.fill(); }); }
+  const cx=board.width/2, cy=board.height/2-40; [ -200,-100,0,100,200 ].forEach((dx,i)=>{ g.beginPath(); g.arc(cx+dx,cy+(i%2? -20:0), i%2?120:150,0,2*Math.PI); g.fill(); }); }
 function drawPlant(){ g.fillStyle='#e9f7ff'; g.fillRect(0,0,board.width,board.height); g.fillStyle='#b57c4a'; g.fillRect(0,board.height*0.75,board.width,board.height*0.25);
-  g.strokeStyle='#4caf50'; g.lineWidth=14; g.beginPath(); g.moveTo(board.width/2,board.height*0.75); g.lineTo(board.width/2,board.height*0.45); g.stroke();
-  g.fillStyle='#7ad957'; g.beginPath(); g.ellipse(board.width/2-40,board.height*0.52,80,30,-0.6,0,Math.PI*2); g.fill();
-  g.beginPath(); g.ellipse(board.width/2+40,board.height*0.58,80,30,0.6,0,Math.PI*2); g.fill(); }
+  g.strokeStyle='#4caf50'; g.lineWidth=16; g.beginPath(); g.moveTo(board.width/2,board.height*0.75); g.lineTo(board.width/2,board.height*0.45); g.stroke();
+  g.fillStyle='#7ad957'; g.beginPath(); g.ellipse(board.width/2-60,board.height*0.52,120,40,-.6,0,2*Math.PI); g.fill();
+  g.beginPath(); g.ellipse(board.width/2+60,board.height*0.58,120,40,.6,0,2*Math.PI); g.fill(); }
 </script>
 </body>
 </html>
