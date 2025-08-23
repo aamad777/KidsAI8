@@ -1,0 +1,19 @@
+<!doctype html><meta charset="utf-8"/>
+<title>Dad AI — Dashboard</title>
+<style>body{font-family:system-ui;margin:20px} table{border-collapse:collapse;width:100%} th,td{border:1px solid #ddd;padding:8px} th{background:#f2f2f2} td{vertical-align:top;max-width:360px;word-break:break-word}</style>
+<h1>Dad AI — Questions</h1>
+<div id="stats"></div>
+<table id="t"><thead><tr><th>Time</th><th>Kid</th><th>Mode</th><th>Question</th><th>Answer</th><th>Book</th></tr></thead><tbody></tbody></table>
+<script>
+(async ()=>{
+  const auth = 'Basic ' + btoa('dad:' + prompt('Admin password:'));
+  const s = await fetch('/api/admin/stats',{headers:{authorization:auth}}).then(r=>r.json()).catch(()=>null);
+  if(s) document.getElementById('stats').textContent = 'By mode: ' + s.byMode.map(x=>`${x.mode}:${x.c}`).join('  ');
+  const rows = await fetch('/api/admin/list',{headers:{authorization:auth}}).then(r=>r.json()).catch(()=>[]);
+  const tb = document.querySelector('#t tbody');
+  rows.forEach(r=>{const tr=document.createElement('tr');
+    tr.innerHTML = `<td>${r.ts}</td><td>${r.kid||''}</td><td>${r.mode}</td><td>${(r.question||'').replaceAll('<','&lt;')}</td><td>${(r.answer||'').replaceAll('<','&lt;')}</td><td>${r.book||''}</td>`;
+    tb.appendChild(tr);
+  });
+})();
+</script>

@@ -1,0 +1,66 @@
+// worker.mjs
+export default {
+  async fetch(req, env, ctx) {
+    const url = new URL(req.url);
+    if (req.method === "POST" && url.pathname === "/api/log") {
+      const body = await req.json().catch(()=> ({}));
+      const {kid="", mode="", question="", answer="", book=null} = body;
+      const ts = new Date().toISOString();
+      await env.DB.prepare(
+        "INSERT INTO interactions (ts, kid, mode, question, answer, book) VALUES (?1, ?2, ?3, ?4, ?5, ?6)"
+      ).bind(ts, kid, mode, question, answer, book).run();
+      return new Response("ok");
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/email") {
+      const { kid="Kid", question="", answer="" } = await req.json().catch(()=> ({}));
+      const to = env.DAD_EMAIL;
+      const html = `
+        <div style="font-family:Inter,system-ui">
+          <h2>Dad AI: A kid needs help</h2>
+          <p><b>Kid:</b> ${escapeHtml(kid)}</p>
+          <p><b>Question:</b><br>${escapeHtml(question)}</p>
+          <p><b>Answer (given to child):</b><br>${escapeHtml(answer)}</p>
+          <hr/>
+          <p>Reply to the child after you check it.</p>
+        </div>`;
+      // Send via MailChannels (no extra account)
+      const resp = await fetch("https://api.mailchannels.net/tx/v1/send", {
+        method: "POST",
+        headers: {"content-type": "application/json"},
+        body: JSON.stringify({
+          personalizations: [{ to: [{ email: to }] }],
+          from: { email: `noreply@${env.MAIL_FROM_DOMAIN}`, name: "Dad AI" },
+          subject: "Dad AI — child asked for help",
+          content: [{ type: "text/html", value: html }]
+        })
+      });
+      if (!resp.ok) return new Response("email-failed", { status: 500 });
+      return new Response("sent");
+    }
+
+    // --- Admin API (basic auth) ---
+    if (url.pathname === "/api/admin/list") {
+      if (!isAuthed(req, env.ADMIN_PASS)) return new Response("auth", { status: 401, headers:{'WWW-Authenticate':'Basic realm="DadAI"'}});
+      const rows = await env.DB.prepare("SELECT id, ts, kid, mode, question, answer, book FROM interactions ORDER BY id DESC LIMIT 200").all();
+      return json(rows.results || []);
+    }
+
+    if (url.pathname === "/api/admin/stats") {
+      if (!isAuthed(req, env.ADMIN_PASS)) return new Response("auth", { status: 401, headers:{'WWW-Authenticate':'Basic realm="DadAI"'}});
+      const byMode = await env.DB.prepare("SELECT mode, COUNT(*) c FROM interactions GROUP BY mode").all();
+      return json({ byMode: byMode.results || [] });
+    }
+
+    return new Response("not found", { status: 404 });
+  }
+}
+
+function json(obj){ return new Response(JSON.stringify(obj), {headers:{"content-type":"application/json"}}); }
+function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
+function isAuthed(req, pass){
+  const h = req.headers.get("authorization") || "";
+  if (!h.startsWith("Basic ")) return false;
+  const [user, pwd] = atob(h.slice(6)).split(":");
+  return (user === "dad" && pwd === pass);
+}

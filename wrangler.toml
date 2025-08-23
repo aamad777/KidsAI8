@@ -1,0 +1,11 @@
+name = "dad-ai-worker"
+main = "worker.mjs"
+compatibility_date = "2025-08-23"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "dad_ai_db"
+database_id = "REPLACE_WITH_YOUR_D1_ID"
+
+[vars]
+MAIL_FROM_DOMAIN = "dad-ai.online"
