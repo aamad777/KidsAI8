@@ -1,429 +1,569 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Dad AI — Play • Learn • Ask</title>
-
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;700&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-<script src="https://cdn.tailwindcss.com"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
-
-<!-- Books -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script> if (window.pdfjsLib) { pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"; } </script>
-<script src="https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/epubjs@0.3.93/dist/epub.min.js"></script>
-
-<!-- Drawing AI (stable combo) -->
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.21.0/dist/tf.min.js"></script>
-<script src="https://unpkg.com/ml5@0.12.2/dist/ml5.min.js"></script>
-
-<style>
-  :root{ --bg1:#0f172a; --bg2:#1d1452; --card:rgba(255,255,255,.14); --accent:#ffd54a; }
-  *{box-sizing:border-box}
-  html,body{height:100%}
-  body{
-    margin:0; font-family:Inter,system-ui; color:#fff;
-    background:
-      radial-gradient(1200px 800px at 20% -10%, #4f46e5, transparent 60%),
-      radial-gradient(800px 600px at 120% 0%, #06b6d4, transparent 55%),
-      linear-gradient(135deg,var(--bg1),var(--bg2));
-    overflow:hidden;
-  }
-  .glass{background:var(--card);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.25);border-radius:20px;box-shadow:0 18px 40px rgba(0,0,0,.25)}
-  .card{background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.2);border-radius:18px;box-shadow:0 12px 24px rgba(0,0,0,.18)}
-  .btn{transition:.18s transform,.18s box-shadow}
-  .btn:hover{transform:translateY(-2px)} .btn:active{transform:translateY(0)}
-  .btn-prim{background:var(--accent);color:#222;font-weight:800}
-  .btn-sec{background:rgba(255,255,255,.9);color:#222}
-  .tag{padding:.25rem .6rem;border-radius:999px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.25);font-size:.8rem}
-  .bubble{position:relative;background:#fff;color:#1f2937;border-radius:16px;padding:1.1rem 1.3rem}
-  .bubble:after{content:"";position:absolute;left:46%;bottom:-16px;border:10px solid transparent;border-top-color:#fff}
-  .loader{border:6px solid #e5e7eb;border-top:6px solid #f59e0b;width:56px;height:56px;border-radius:50%;animation:spin 1s linear infinite}
-  @keyframes spin{to{transform:rotate(360deg)}}
-  .tool-btn{background:rgba(255,255,255,.9);color:#111;border-radius:12px;padding:.5rem .7rem;display:flex;align-items:center;gap:.5rem}
-  .tool-btn.active{outline:3px solid #ffd54a}
-  .swatch{width:22px;height:22px;border-radius:6px;border:2px solid rgba(0,0,0,.15);cursor:pointer}
-  .bar{height:8px;border-radius:6px;background:rgba(255,255,255,.35);overflow:hidden}
-  .fill{height:100%;background:#ffd54a}
-
-  /* Cute cat family */
-  #catFamily{display:flex; gap:22px; align-items:flex-end}
-  .catWrap{position:relative; will-change:transform; transition:transform .03s linear; filter:drop-shadow(0 10px 30px rgba(0,0,0,.35))}
-  .cloud{position:absolute; left:50%; transform:translateX(-50%); bottom:84px; background:#ffffff; color:#1f2937; padding:.25rem .6rem; border-radius:999px; box-shadow:0 6px 18px rgba(0,0,0,.15); font-weight:800; font-size:.75rem}
-  .blink{animation:blink 4s infinite}
-  @keyframes blink{0%,97%,100%{transform:scaleY(1)}98%{transform:scaleY(.12)}}
-</style>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Dad AI — play • learn • ask</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.min.js"></script>
+  <script>
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.worker.min.js";
+  </script>
+  <style>
+    :root { --card: rgba(255,255,255,.08); --ring: rgba(255,255,255,.18); }
+    .card { background: var(--card); backdrop-filter: blur(10px); border: 1px solid var(--ring); border-radius: 18px; }
+    .btn  { background:#ffd54a; color:#1f2937; font-weight:700; }
+    .btn-sec { background: rgba(255,255,255,.6); font-weight:600; }
+    .tag { background: rgba(0,0,0,.08); padding:.25rem .5rem; border-radius:20px; font-size:.85rem; }
+    .cloud { background: rgba(255,255,255,.95); padding:2px 8px; border-radius:999px; display:inline-block; margin:0 auto 6px; font-size:13px; color:#475569; box-shadow: 0 6px 18px rgba(0,0,0,.07); }
+    .toolbar button{ border-radius:14px; padding:.55rem .9rem; }
+    canvas { touch-action: none; }
+    .pill { background: rgba(255,255,255,.84); color:#334155; padding:6px 10px; border-radius: 999px; font-weight:600; }
+  </style>
 </head>
-<body>
-<div class="max-w-[1120px] mx-auto h-screen grid grid-rows-[auto_1fr] gap-3 p-4">
-  <!-- Header -->
-  <header class="glass px-5 py-3 flex items-center justify-between">
-    <div class="flex items-center gap-4">
-      <div id="catFamily">
-        <!-- template (cloned to Dad/Mama/Baby) -->
-        <div class="catWrap" data-lag="1.0" data-scale="1.0"><div class="cloud">Dad</div>
-          <svg class="cat" width="92" height="92" viewBox="0 0 120 120" aria-label="Cat">
-            <defs>
-              <radialGradient id="fur" cx="50%" cy="40%" r="70%"><stop offset="0%" stop-color="#5a5f88"/><stop offset="100%" stop-color="#2f3450"/></radialGradient>
-            </defs>
-            <path d="M25 35 L45 15 L48 40 Z" fill="#3b3f67"/><path d="M95 35 L75 15 L72 40 Z" fill="#3b3f67"/>
-            <circle cx="60" cy="55" r="32" fill="url(#fur)"/><ellipse cx="60" cy="62" rx="24" ry="16" fill="#3a3f61"/>
-            <g class="eyes"><circle cx="48" cy="52" r="7.5" fill="#ffd54a" class="blink"/><circle cx="72" cy="52" r="7.5" fill="#ffd54a" class="blink"/><circle class="pL" cx="48" cy="52" r="3" fill="#0f1228"/><circle class="pR" cx="72" cy="52" r="3" fill="#0f1228"/></g>
-            <polygon points="58,60 62,60 60,62.5" fill="#ff8fab"/><rect class="mouth" x="54" y="66" width="12" height="4" rx="2" fill="#83e377"/>
-            <line x1="30" y1="64" x2="48" y2="64" stroke="#cbd3ff" stroke-width="2"/><line x1="30" y1="68" x2="48" y2="66" stroke="#cbd3ff" stroke-width="2"/>
-            <line x1="72" y1="64" x2="90" y2="64" stroke="#cbd3ff" stroke-width="2"/><line x1="72" y1="66" x2="90" y2="68" stroke="#cbd3ff" stroke-width="2"/>
-            <ellipse cx="60" cy="96" rx="34" ry="16" fill="#50557a"/>
-          </svg>
+<body class="min-h-screen text-white" style="background: radial-gradient(1200px 700px at 20% -10%, #6d5dd7 0%, transparent 50%), radial-gradient(1000px 600px at 90% 0%, #4a90e2 0%, transparent 45%), #0b1021">
+  <div class="max-w-6xl mx-auto p-4 sm:p-6">
+    <!-- Header -->
+    <div class="card p-3 sm:p-4 flex items-center gap-4 justify-between">
+      <div class="flex items-center gap-4">
+        <div id="catFamily" class="flex gap-6 items-end"></div>
+        <div>
+          <div class="text-2xl sm:text-3xl font-black leading-tight">Dad <span class="text-yellow-300">AI</span></div>
+          <div class="text-sm opacity-90">Ask, draw, guess, read books — English & Arabic</div>
         </div>
       </div>
-      <div>
-        <div class="flex items-center gap-2">
-          <h1 class="font-[Fredoka] text-3xl">Dad <span class="text-[#ffe082]">AI</span></h1>
-          <span class="tag">play • learn • ask</span>
-        </div>
-        <p class="text-white/80 text-sm">Ask, draw, guess, read books — English & Arabic</p>
+      <div class="flex items-center gap-2">
+        <input id="kid" class="px-3 py-2 rounded-lg text-gray-900" placeholder="Kid name (optional)"/>
+        <button id="dadTab" class="btn-sec px-3 py-2 rounded-lg">👨‍👧 Dad Dashboard</button>
+        <button id="settingsBtn" class="btn-sec px-3 py-2 rounded-lg">⚙️ Settings</button>
       </div>
     </div>
-    <div class="flex items-center gap-2">
-      <input id="kidName" class="px-3 py-2 rounded-lg text-sm bg-white/80 text-gray-900" placeholder="Kid name (optional)"/>
-      <button id="settingsBtn" class="btn btn-sec px-3 py-2 rounded-lg">⚙️ Settings</button>
-    </div>
-  </header>
 
-  <!-- Main -->
-  <main class="grid md:grid-cols-5 gap-3 min-h-0">
-    <!-- Left controls -->
-    <aside class="glass p-3 md:col-span-2">
-      <div id="modeSwitcher" class="grid grid-cols-4 gap-2">
-        <button data-mode="question" class="btn btn-sec rounded-xl py-2 font-semibold border border-white/20">Ask</button>
-        <button data-mode="story"    class="btn btn-sec rounded-xl py-2 font-semibold border border-white/20">Story ✨</button>
-        <button data-mode="drawing"  class="btn btn-sec rounded-xl py-2 font-semibold border border-white/20">Drawing 🎨</button>
-        <button data-mode="book"     class="btn btn-sec rounded-xl py-2 font-semibold border border-white/20">Book Q&amp;A 📚</button>
-      </div>
-
-      <div id="bookPanel" class="card p-3 mt-3 hidden">
-        <div class="flex items-center justify-between">
-          <h3 class="font-semibold">Your Book</h3><div id="bookStatus" class="text-xs opacity-90">No book loaded</div>
-        </div>
-        <div class="mt-2 space-y-2">
-          <input id="bookFile" type="file" accept=".pdf,.txt,.docx,.epub" class="block w-full text-sm file:mr-3 file:px-3 file:py-2 file:rounded-lg file:border-0 file:bg-white/90 file:text-gray-900"/>
-          <button id="indexBtn" class="btn btn-sec px-3 py-2 rounded-lg w-full">Build Book Index</button>
-          <p class="text-xs opacity-80">100% local in your browser.</p>
-        </div>
-      </div>
-
-      <!-- Ask/Story form -->
-      <form id="qaForm" class="mt-3 flex flex-col gap-2">
-        <div class="flex gap-2">
-          <input id="userInput" class="px-3 py-3 rounded-xl bg-white/90 text-gray-900 flex-1" placeholder="Why is the sky blue?" required/>
-          <button id="micBtn" type="button" class="btn btn-prim px-3 rounded-xl" title="Speak"><span id="micIcon">🎤</span></button>
-        </div>
-        <div class="flex gap-2">
-          <button id="submitBtn" class="btn btn-prim px-4 py-3 rounded-xl">Ask!</button>
-          <button id="resetBtn" type="button" class="btn px-4 py-3 rounded-xl bg-rose-400 hidden">Again</button>
-          <button id="readBtn" type="button" class="btn btn-sec px-4 py-3 rounded-xl">🔊 Read</button>
-        </div>
-      </form>
-
-      <!-- Drawing toolbar -->
-      <div id="drawTools" class="card p-3 mt-3 hidden">
-        <div class="flex flex-wrap items-center gap-2">
-          <div class="tool-btn" id="toolPen">✏️ Pen</div>
-          <div class="tool-btn" id="toolEraser">🧽 Eraser</div>
-          <div class="tool-btn" id="toolClear">🗑️ Clear</div>
-          <div class="tool-btn" id="toolSave">💾 Save PNG</div>
-          <div class="tool-btn" id="toolGuess">🤖 Guess</div>
-          <span id="modelStatus" class="tag">AI: not loaded</span>
-        </div>
-        <div class="mt-3 flex items-center gap-3">
-          <div class="flex items-center gap-2">
-            <div class="swatch" data-color="#000000" style="background:#000"></div>
-            <div class="swatch" data-color="#ff3b30" style="background:#ff3b30"></div>
-            <div class="swatch" data-color="#ffcc00" style="background:#ffcc00"></div>
-            <div class="swatch" data-color="#34c759" style="background:#34c759"></div>
-            <div class="swatch" data-color="#0a84ff" style="background:#0a84ff"></div>
-            <div class="swatch" data-color="#a55eea" style="background:#a55eea"></div>
-            <div class="swatch" data-color="#ffffff" style="background:#fff;border-color:#999"></div>
-          </div>
-          <div class="flex items-center gap-2">
-            <label class="text-sm opacity-90">Size</label>
-            <input id="brushSize" type="range" min="2" max="32" value="8"/>
+    <!-- Main two columns -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+      <div class="space-y-3">
+        <!-- Modes -->
+        <div class="card p-3">
+          <div class="flex gap-2">
+            <button class="pill" data-mode="ask">Ask</button>
+            <button class="pill" data-mode="story">Story ✨</button>
+            <button class="pill" data-mode="drawing">Drawing 🎨</button>
+            <button class="pill" data-mode="book">Book Q&A 📚</button>
           </div>
         </div>
 
-        <!-- Text → drawing -->
-        <div class="mt-3 flex gap-2">
-          <input id="drawPrompt" class="px-3 py-2 rounded-xl bg-white/90 text-gray-900 flex-1" placeholder="Type: cat, house, rocket…"/>
-          <button id="drawIt" class="btn btn-sec px-3 rounded-xl">Draw it</button>
-        </div>
-
-        <div id="guessBox" class="mt-3 hidden">
-          <h4 class="font-semibold mb-2">AI guesses</h4>
-          <div id="guesses" class="space-y-2 text-sm"></div>
-        </div>
-      </div>
-
-      <div class="mt-3 grid grid-cols-3 gap-2 text-sm">
-        <button class="btn card py-2" data-sfx="boing">🪀 Boing</button>
-        <button class="btn card py-2" data-sfx="zap">⚡ Zap</button>
-        <button class="btn card py-2" data-sfx="pop">🫧 Pop</button>
-      </div>
-    </aside>
-
-    <!-- Right panel -->
-    <section class="glass p-4 md:col-span-3 overflow-hidden relative">
-      <div id="ansWrap" class="h-full w-full relative">
-        <!-- Answer bubble -->
-        <div class="w-full h-full flex items-center justify-center">
-          <div id="bubble" class="bubble hidden max-w-[90%] md:max-w-[680px]">
-            <div class="flex items-center justify-between gap-3">
-              <p id="answer-text" class="text-lg md:text-xl leading-relaxed flex-1"></p>
-              <button id="emailDad" class="btn btn-sec px-3 py-2 rounded-lg text-sm" title="Ask Dad by email">📧 Dad</button>
-            </div>
+        <!-- Ask / Story -->
+        <div id="askBox" class="card p-3 space-y-2">
+          <div class="flex gap-2 items-stretch">
+            <input id="question" class="flex-1 rounded-lg px-3 py-3 text-gray-900" placeholder="Why is the sky blue?"/>
+            <button id="magic" class="btn px-4 rounded-lg">🔍</button>
           </div>
-          <div id="loader" class="loader hidden"></div>
+          <div class="flex gap-2">
+            <button id="askBtn" class="btn px-4 py-2 rounded-lg">Ask!</button>
+            <button id="readBtn" class="btn-sec px-4 py-2 rounded-lg">🔊 Read</button>
+          </div>
+          <div class="flex gap-2 toolbar">
+            <button id="boing">🍇 Boing</button>
+            <button id="zap">⚡️ Zap</button>
+            <button id="pop">✨ Pop</button>
+          </div>
         </div>
-        <!-- Drawing canvas -->
-        <canvas id="drawCanvas" class="hidden absolute inset-0 w-full h-full bg-white rounded-xl"></canvas>
+
+        <!-- Book Q&A tools -->
+        <div id="bookBox" class="card p-3 hidden">
+          <div class="flex flex-wrap gap-2 items-center">
+            <input type="file" id="bookFile" accept=".txt,.pdf,.docx,.epub" class="hidden"/>
+            <label for="bookFile" class="btn-sec px-3 py-2 rounded-lg cursor-pointer">📄 Upload book (TXT/PDF/DOCX/EPUB)</label>
+            <button id="buildIdx" class="btn px-3 py-2 rounded-lg">🔎 Build Book Index</button>
+            <span id="bookStatus" class="tag">No book</span>
+          </div>
+          <div class="text-xs mt-2 opacity-90">Dad AI first checks your uploaded book for answers before using AI.</div>
+        </div>
+
+        <!-- Drawing tools -->
+        <div id="drawBox" class="card p-3 hidden">
+          <div class="flex flex-wrap gap-2 items-center">
+            <button id="pen" class="btn-sec">✏️ Pen</button>
+            <button id="eraser" class="btn-sec">🧽 Eraser</button>
+            <button id="clear" class="btn-sec">🧺 Clear</button>
+            <button id="save" class="btn-sec">💾 Save PNG</button>
+            <button id="guess" class="btn">🤖 Guess my drawing</button>
+            <span id="aiState" class="tag">AI: loading…</span>
+          </div>
+          <div class="flex items-center gap-2 mt-2">
+            <span class="text-sm">Color</span>
+            <input id="color" type="color" value="#000000"/>
+            <span class="text-sm">Size</span>
+            <input id="size" type="range" min="2" max="40" value="8"/>
+          </div>
+          <div class="flex items-center gap-2 mt-2">
+            <input id="whatToDraw" class="rounded-lg px-3 py-2 text-gray-900 flex-1" placeholder="Type an animal (cat, dog, bunny, bird, fish)…"/>
+            <button id="drawIt" class="btn px-3 py-2 rounded-lg">🖼️ Draw it</button>
+          </div>
+        </div>
+
       </div>
 
-      <!-- Book context preview -->
-      <div id="ctxPanel" class="card p-3 mt-3 hidden">
-        <h4 class="font-semibold mb-2">From your book</h4>
-        <div id="ctxSnippets" class="space-y-2 text-sm text-white/90"></div>
+      <!-- Answer column -->
+      <div class="card p-3 min-h-[420px]">
+        <div id="answerArea" class="h-[360px] overflow-auto">
+          <div id="placeholder" class="opacity-70">Your answer shows here…</div>
+          <div id="answerBubble" class="hidden">
+            <div id="answer" class="text-lg leading-relaxed"></div>
+            <div id="snips" class="mt-3 space-y-2"></div>
+          </div>
+        </div>
       </div>
-    </section>
-  </main>
-</div>
-
-<!-- Settings -->
-<dialog id="settingsDlg" class="card p-0 w-[min(560px,95vw)] text-gray-900">
-  <form method="dialog">
-    <div class="px-5 py-3 border-b border-black/10"><h2 class="font-semibold text-lg">Settings</h2></div>
-    <div class="p-5 grid gap-3">
-      <label class="text-sm">Gemini API Key
-        <input id="apiKeyInput" class="w-full mt-1 p-2 rounded-lg border" placeholder="AIza... (optional)"/>
-      </label>
-      <label class="text-sm flex items-center gap-2">
-        <input id="autoVoice" type="checkbox" class="scale-125"/>
-        Auto‑read answers (Dad AI talks)
-      </label>
-      <p class="text-xs text-gray-600">No key? Dad AI runs in offline mode. Book Q&A + Drawing work fully offline.</p>
     </div>
-    <div class="px-5 py-3 border-t border-black/10 flex justify-end gap-2">
-      <button class="px-3 py-2 rounded-lg">Close</button>
-      <button id="saveSettings" type="button" class="px-3 py-2 rounded-lg bg-[#ffd54a] font-semibold">Save</button>
+
+    <!-- Drawing canvas -->
+    <div class="card p-3 mt-4">
+      <canvas id="board" width="900" height="500" class="w-full bg-white rounded-xl"></canvas>
     </div>
-  </form>
-</dialog>
+  </div>
 
-<script>
-/* ========= Utilities ========= */
-const STOP_EN=new Set("a an and are as at be but by for from has have if in into is it its of on or that the to was were will with what when where who why how your you".split(/\s+/));
-const STOP_AR=new Set("في على من إلى عن أن إن كان تكون تكونوا الذي التي الذين التي هذا هذه ذلك هناك هنا هي هو هم هن ثم حيث كما أي اذا إذا أو و يا ما مازال لماذا متى كيف لأن لدى عند بعد قبل بين كل بعض جدًا جدا قد لقد مثلا مثلاً إنّ أنّ إلا إلاّ إلى".split(/\s+/));
-function detectLang(t){const ar=(t.match(/[\u0600-\u06FF]/g)||[]).length,en=(t.match(/[A-Za-z]/g)||[]).length;return (ar===0&&en===0)?'en':(ar>=en?'ar':'en');}
-function speak(text, lang='en'){
-  if(!('speechSynthesis' in window)) return;
-  const u=new SpeechSynthesisUtterance(text); u.lang=(lang==='ar'?'ar-SA':'en-US'); u.rate=(lang==='ar'?1.0:1.03); u.pitch=(lang==='ar'?1.05:1.25);
-  const v = speechSynthesis.getVoices().find(v=>v.lang.startsWith(lang==='ar'?'ar':'en')); if(v) u.voice=v;
-  speechSynthesis.cancel(); speechSynthesis.speak(u);
-}
+  <!-- Settings modal -->
+  <dialog id="settingsDlg" class="card p-0 w-[min(520px,96vw)] text-gray-900">
+    <form method="dialog">
+      <div class="px-5 py-3 border-b font-semibold">Settings</div>
+      <div class="p-5 space-y-3">
+        <label class="text-sm">Gemini API key (optional for smarter answers)
+          <input id="gemKey" class="w-full p-2 mt-1 rounded-lg border" placeholder="AIza…"/>
+        </label>
+        <label class="text-sm">Auto‑read answers (TTS)
+          <input id="autoRead" type="checkbox" class="ml-2 align-middle"/>
+        </label>
+      </div>
+      <div class="px-5 py-3 border-t flex justify-end"><button>Close</button></div>
+    </form>
+  </dialog>
 
-/* ========= DOM ========= */
-const E={
-  modeSwitcher:document.getElementById('modeSwitcher'),
-  bookPanel:document.getElementById('bookPanel'), bookFile:document.getElementById('bookFile'),
-  indexBtn:document.getElementById('indexBtn'), bookStatus:document.getElementById('bookStatus'),
-  ctxPanel:document.getElementById('ctxPanel'), ctxSnippets:document.getElementById('ctxSnippets'),
-  form:document.getElementById('qaForm'), input:document.getElementById('userInput'),
-  micBtn:document.getElementById('micBtn'), micIcon:document.getElementById('micIcon'),
-  submit:document.getElementById('submitBtn'), reset:document.getElementById('resetBtn'), read:document.getElementById('readBtn'),
-  bubble:document.getElementById('bubble'), answer:document.getElementById('answer-text'), loader:document.getElementById('loader'),
-  drawCanvas:document.getElementById('drawCanvas'), drawTools:document.getElementById('drawTools'),
-  toolPen:toolPen, toolEraser:toolEraser, toolClear:toolClear, toolSave:toolSave, toolGuess:toolGuess, brushSize:brushSize,
-  modelStatus:modelStatus, guessBox:guessBox, guesses:guesses,
-  drawPrompt:document.getElementById('drawPrompt'), drawIt:document.getElementById('drawIt'),
-  emailDad:document.getElementById('emailDad'),
-  settingsBtn:settingsBtn, settingsDlg:settingsDlg, apiKeyInput:apiKeyInput, autoVoice:autoVoice, saveSettings:saveSettings,
-  kidName:kidName, catFamily:document.getElementById('catFamily')
-};
-const S={mode:'question', apiKey:localStorage.getItem('g_apiKey')||'', autoVoice:localStorage.getItem('g_autoVoice')==='1',
-  ready:false, chunks:[], tfs:[], idf:new Map(), norms:[], bookName:'',
-  draw:{color:'#000000', size:8, erasing:false, model:null, modelReady:false, modelLoading:false},
-  followers:[]};
+  <!-- Dad dashboard modal -->
+  <dialog id="dadDlg" class="card p-0 w-[min(780px,96vw)] text-gray-900">
+    <form method="dialog">
+      <div class="px-5 py-3 border-b font-semibold">Dad Dashboard</div>
+      <div class="p-5 space-y-3">
+        <label class="text-sm">Password
+          <input id="dadPwd" type="password" class="w-full mt-1 p-2 rounded-lg border" placeholder="ADMIN_PASS"/>
+        </label>
+        <button id="dadLoad" type="button" class="px-3 py-2 rounded-lg bg-[#ffd54a] font-semibold">Load latest</button>
+        <div id="faqList" class="mt-2 space-y-3"></div>
+      </div>
+      <div class="px-5 py-3 border-t flex justify-end"><button>Close</button></div>
+    </form>
+  </dialog>
 
-/* ========= Cat family (Dad / Mama / Baby) ========= */
-function buildFamily(){
-  const tmp=E.catFamily.querySelector('.catWrap');
-  const cfgs=[{lag:1.0,scale:1.0,label:'Dad'},{lag:2.0,scale:0.82,label:'Mama'},{lag:2.8,scale:0.72,label:'Baby'}];
-  const root=E.catFamily; root.innerHTML='';
-  cfgs.forEach(c=>{const n=tmp.cloneNode(true); n.dataset.lag=c.lag; n.style.transformOrigin='50% 50%'; n.style.transform=`scale(${c.scale})`; n.querySelector('.cloud').textContent=c.label; root.appendChild(n);});
-}
-buildFamily();
-let targetX=0,targetY=0,last=performance.now();
-addEventListener('mousemove',e=>{targetX=e.clientX; targetY=e.clientY;},{passive:true});
-function mouthOpen(svg,level=1){const m=svg.querySelector('.mouth'); if(!m) return; const h=4+Math.min(1,Math.max(0,level))*10; m.setAttribute('height',h); m.setAttribute('y',66-(h-4)/2);}
-function catSpeak(text,lang){const svgs=[...document.querySelectorAll('#catFamily .cat')]; if(!('speechSynthesis' in window)){return;}
-  const u=new SpeechSynthesisUtterance(text); u.lang=(lang==='ar'?'ar-SA':'en-US'); u.rate=1.02; u.pitch=1.2;
-  let timer=setInterval(()=>svgs.forEach(s=>{mouthOpen(s,Math.random()); setTimeout(()=>mouthOpen(s,0),90)}),230);
-  u.onend=()=>{clearInterval(timer); svgs.forEach(s=>mouthOpen(s,0));}; speechSynthesis.cancel(); speechSynthesis.speak(u);}
-function catFollowTick(t){
-  const dt=Math.min((t-last)/16.67,2); last=t; const wraps=[...document.querySelectorAll('#catFamily .catWrap')];
-  wraps.forEach((wrap,i)=>{const lag=parseFloat(wrap.dataset.lag||1); if(!S.followers[i]) S.followers[i]={x:0,y:0};
-    const f=S.followers[i]; const nx=(targetX/innerWidth*2-1)*40, ny=(targetY/innerHeight*2-1)*40;
-    f.x+=(nx-f.x)*(0.12/lag)*dt; f.y+=(ny-f.y)*(0.12/lag)*dt; const tilt=(f.x/40)*8;
-    wrap.style.transform=`translate3d(${f.x}px,${f.y}px,0) rotate(${tilt}deg) ${wrap.style.transform.includes('scale')?'':'scale(1)'}`;
-    const eyes=wrap.querySelector('.eyes').getBoundingClientRect(); const cx=eyes.left+eyes.width/2, cy=eyes.top+eyes.height/2;
-    const a=Math.atan2(targetY-cy,targetX-cx); const dx=Math.cos(a)*3, dy=Math.sin(a)*3;
-    wrap.querySelectorAll('.pL,.pR').forEach(p=>p.style.transform=`translate(${dx}px,${dy}px)`);});
-  requestAnimationFrame(catFollowTick);
-}
-requestAnimationFrame(catFollowTick);
+  <script>
+  // ========== State & Refs ==========
+  const E = {
+    kid: document.getElementById('kid'),
+    settingsBtn: document.getElementById('settingsBtn'),
+    settingsDlg: document.getElementById('settingsDlg'),
+    gemKey: document.getElementById('gemKey'),
+    autoRead: document.getElementById('autoRead'),
+    catFamily: document.getElementById('catFamily'),
+    answerArea: document.getElementById('answerArea'),
+    bubble: document.getElementById('answerBubble'),
+    answer: document.getElementById('answer'),
+    snips: document.getElementById('snips'),
+    placeholder: document.getElementById('placeholder'),
+    askBtn: document.getElementById('askBtn'),
+    readBtn: document.getElementById('readBtn'),
+    q: document.getElementById('question'),
+    magic: document.getElementById('magic'),
+    modeBtns: document.querySelectorAll('[data-mode]'),
+    askBox: document.getElementById('askBox'),
+    drawBox: document.getElementById('drawBox'),
+    bookBox: document.getElementById('bookBox'),
+    dadTab: document.getElementById('dadTab'),
+    dadDlg: document.getElementById('dadDlg'),
+    dadPwd: document.getElementById('dadPwd'),
+    dadLoad: document.getElementById('dadLoad'),
+    faqList: document.getElementById('faqList'),
+    board: document.getElementById('board'),
+    pen: document.getElementById('pen'),
+    eraser: document.getElementById('eraser'),
+    clear: document.getElementById('clear'),
+    save: document.getElementById('save'),
+    guess: document.getElementById('guess'),
+    aiState: document.getElementById('aiState'),
+    color: document.getElementById('color'),
+    size: document.getElementById('size'),
+    whatToDraw: document.getElementById('whatToDraw'),
+    drawIt: document.getElementById('drawIt'),
+    bookFile: document.getElementById('bookFile'),
+    buildIdx: document.getElementById('buildIdx'),
+    bookStatus: document.getElementById('bookStatus'),
+  };
+  const S = { mode:'ask', autoVoice:false, gemKey:'', book:{text:'', chunks:[], name:''} };
 
-/* ========= Settings ========= */
-settingsBtn.onclick=()=>{apiKeyInput.value=S.apiKey; autoVoice.checked=S.autoVoice; settingsDlg.showModal();};
-saveSettings.onclick=()=>{S.apiKey=apiKeyInput.value.trim(); S.autoVoice=!!autoVoice.checked; localStorage.setItem('g_apiKey',S.apiKey); localStorage.setItem('g_autoVoice',S.autoVoice?'1':'0'); settingsDlg.close();};
-kidName.value=localStorage.getItem('g_kid')||''; kidName.onchange=()=>{localStorage.setItem('g_kid',kidName.value.trim());};
-
-/* ========= Modes ========= */
-function setMode(m){
-  S.mode=m; [...modeSwitcher.querySelectorAll('button')].forEach(b=>{b.classList.toggle('btn-prim',b.dataset.mode===m); b.classList.toggle('btn-sec',b.dataset.mode!==m);});
-  const draw=(m==='drawing'); bookPanel.classList.toggle('hidden',m!=='book'); ctxPanel.classList.add('hidden');
-  bubble.classList.toggle('hidden',draw); loader.classList.add('hidden'); drawCanvas.classList.toggle('hidden',!draw); drawTools.classList.toggle('hidden',!draw); qaForm.classList.toggle('hidden',draw);
-  if(m==='question'){userInput.placeholder="Why is the sky blue?"; submitBtn.textContent='Ask!';}
-  if(m==='story'){userInput.placeholder="A tiny story about a cat family…"; submitBtn.textContent='Tell Story ✨';}
-  if(m==='book'){userInput.placeholder="Ask your book… (يمكن بالعربية)"; submitBtn.textContent='Ask Book 📚';}
-  if(draw){resizeDrawCanvas(); loadDoodleNet();}
-}
-modeSwitcher.addEventListener('click',e=>{if(e.target.tagName==='BUTTON') setMode(e.target.dataset.mode);});
-setMode('question');
-
-/* ========= Optional Gemini ========= */
-async function callGemini(prompt){
-  const key=S.apiKey.trim(); if(!key) return null;
-  try{ const url=`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${encodeURIComponent(key)}`;
-    const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{parts:[{text:prompt}]}]})});
-    if(!r.ok) throw new Error(await r.text()); const d=await r.json(); return (d?.candidates?.[0]?.content?.parts?.[0]?.text||'').trim();
-  }catch(e){ console.error(e); return null; }
-}
-function buildPrompt(txt,ctx=''){const lang=detectLang(txt||ctx);
-  if(S.mode==='book'){return (lang==='ar')?`أجب لطفل بجمل قصيرة جدًا اعتمادًا فقط على السياق.\n\nالسياق:\n${ctx}\n\nالسؤال: ${txt}`:`Answer a child in 2–4 short sentences using ONLY the context.\n\nContext:\n${ctx}\n\nQuestion:\n${txt}`;}
-  if(lang==='ar'){return (S.mode==='story')?`اكتب قصة قصيرة سعيدة (≤٥ جمل) عن: "${txt}".`:`أجب لطفل بجمل قصيرة (٢–٤) مع لمسة مرحة. السؤال: "${txt}"`;}
-  return (S.mode==='story')?`Tell a super short, happy story (≤5 sentences) about: "${txt}".`:`Answer a young kid in 2–4 short sentences using simple words. Question: "${txt}"`;}
-function offlineAsk(q){return detectLang(q)==='ar' ? `لأن العالم لغز لطيف! سنفكر معًا خطوة بخطوة.` : `Because the world is a friendly puzzle! We’ll figure it out step by step.`;}
-function offlineStory(topic){return detectLang(topic)==='ar' ? `في ليلة لامعة، طارت عائلة القطط — بابا وماما والقط الصغير — فوق الغيوم، وعادوا بضحكات ونجوم.` : `One shiny night, the cat family — Dad, Mama, and Baby — flew over the clouds and came home with giggles and stars.`;}
-
-/* ========= Book engine ========= */
-function stripHTML(h){const d=document.createElement('div'); d.innerHTML=h; return d.textContent||d.innerText||'';}
-async function readTXT(f){return (await f.text()).replace(/\r\n/g,'\n');}
-async function readPDF(f){const ab=await f.arrayBuffer(); const pdf=await pdfjsLib.getDocument({data:ab}).promise; let out=''; for(let p=1;p<=pdf.numPages;p++){const pg=await pdf.getPage(p); const c=await pg.getTextContent(); out+=c.items.map(i=>i.str).join(' ')+'\n';} return out;}
-async function readDOCX(f){const ab=await f.arrayBuffer(); const res=await window.mammoth.convertToHtml({arrayBuffer:ab}); return stripHTML(res.value||'');}
-async function readEPUB(f){const ab=await f.arrayBuffer(); const book=ePub(ab); await book.ready; const items=book.spine.spineItems; const texts=[]; for(const it of items){try{const tx=await it.load(book.load.bind(book)).then(()=>stripHTML(it.document.body.innerText||it.document.body.textContent||'')); texts.push(tx); it.unload();}catch{}} return texts.join('\n\n');}
-function tokenize(s){const lang=/[\u0600-\u06FF]/.test(s)?'ar':'en'; const raw=(s.toLowerCase().match(/[a-z\u0600-\u06FF]+/g))||[]; return raw.filter(w=>lang==='ar'?!STOP_AR.has(w):!STOP_EN.has(w));}
-function chunkify(text,size=1200,overlap=160){const chunks=[]; let i=0; while(i<text.length){const part=text.slice(i,i+size); chunks.push(part.trim()); i+=size-overlap;} return chunks.filter(Boolean);}
-function buildIndex(chunks){const dfs=new Map(),tfs=[]; chunks.forEach(c=>{const toks=tokenize(c); const tf=new Map(); toks.forEach(w=>tf.set(w,(tf.get(w)||0)+1)); tfs.push(tf); const seen=new Set(); tf.forEach((_,w)=>{if(!seen.has(w)){dfs.set(w,(dfs.get(w)||0)+1); seen.add(w);}})}); const N=chunks.length,idf=new Map(); dfs.forEach((df,w)=>idf.set(w,Math.log(1+N/(1+df)))); const norms=tfs.map(tf=>{let s=0; tf.forEach((f,w)=>{const v=f*(idf.get(w)||0); s+=v*v;}); return Math.sqrt(s)||1e-6;}); return {tfs,idf,norms};}
-function cosineScore(q,idx){const qtf=new Map(); q.forEach(w=>qtf.set(w,(qtf.get(w)||0)+1)); let qs=0; qtf.forEach((f,w)=>{const v=f*(idx.idf.get(w)||0); qs+=v*v;}); const qn=Math.sqrt(qs)||1e-6;
-  return S.chunks.map((_,i)=>{let dot=0; idx.tfs[i].forEach((f,w)=>{const qf=qtf.get(w); if(qf){dot+=(f*(idx.idf.get(w)||0))*(qf*(idx.idf.get(w)||0));}}); return dot/(idx.norms[i]*qn);});}
-function topBookContext(query,k=3){if(!S.ready) return {snips:[],joined:''}; const q=tokenize(query); const scores=cosineScore(q,{tfs:S.tfs,idf:S.idf,norms:S.norms}); const idxs=scores.map((s,i)=>[s,i]).sort((a,b)=>b[0]-a[0]).slice(0,k).filter(x=>x[0]>0.0001); const snips=idxs.map(([s,i])=>({score:s,text:S.chunks[i]})); const joined=snips.map((s,i)=>`[${i+1}] ${s.text}`).join('\n---\n'); return {snips,joined};}
-function showSnips(snips){ctxSnippets.innerHTML=''; snips.forEach(s=>{const d=document.createElement('div'); d.className='p-2 rounded bg-white/10 border border-white/15'; d.setAttribute('dir',/[\u0600-\u06FF]/.test(s.text)?'rtl':'ltr'); d.textContent=s.text.slice(0,600)+(s.text.length>600?'…':''); ctxSnippets.appendChild(d);}); ctxPanel.classList.toggle('hidden',!snips.length);}
-
-/* ========= Ask/Story submit ========= */
-qaForm.addEventListener('submit', async (e)=>{
-  e.preventDefault(); loader.classList.remove('hidden'); bubble.classList.add('hidden'); resetBtn.classList.remove('hidden');
-  const txt=userInput.value.trim(); if(!txt){loader.classList.add('hidden'); return;}
-  let reply='', ctx='';
-  if(S.mode==='book'){
-    if(!S.ready){loader.classList.add('hidden'); alert('Load and index a book first.'); return;}
-    const {snips,joined}=topBookContext(txt,3); showSnips(snips); ctx=joined||'(no context)';
-    const online=await callGemini((detectLang(txt||ctx)==='ar')?`أجب لطفل بجمل قصيرة جدًا اعتمادًا فقط على السياق.\n\nالسياق:\n${ctx}\n\nالسؤال: ${txt}`:`Answer a child in 2–4 short sentences using ONLY the context.\n\nContext:\n${ctx}\n\nQuestion:\n${txt}`);
-    reply = online || (snips[0]?.text.slice(0,400)+'…' || (detectLang(txt)==='ar'?'لم أجد ذلك في كتابك.':'I could not find that in your book.'));
-  } else if(S.mode==='story'){
-    reply = (await callGemini((detectLang(txt)==='ar')?`اكتب قصة قصيرة سعيدة (≤٥ جمل) عن: "${txt}".`:`Tell a super short, happy story (≤5 sentences) about: "${txt}".`)) || (detectLang(txt)==='ar' ? `في ليلة لامعة، طارت عائلة القطط — بابا وماما والقط الصغير — فوق الغيوم، وعادوا بضحكات ونجوم.` : `One shiny night, the cat family — Dad, Mama, and Baby — flew over the clouds and came home with giggles and stars.`);
-  } else {
-    reply = (await callGemini((detectLang(txt)==='ar')?`أجب لطفل بجمل قصيرة (٢–٤) مع لمسة مرحة. السؤال: "${txt}"`:`Answer a young kid in 2–4 short sentences using simple words. Question: "${txt}"`)) || (detectLang(txt)==='ar' ? `لأن العالم لغز لطيف! سنفكر معًا خطوة بخطوة.` : `Because the world is a friendly puzzle! We’ll figure it out step by step.`);
+  // ========== Cute Cat Family ==========
+  const CAT_SKINS = [
+    { label:"Dad",  base:"#ffd7e0", ear:"#ffb0c1", eye:"#2f2f46", nose:"#ff7aa2", whisk:"#c5b7c4" },
+    { label:"Mama", base:"#dff6ff", ear:"#b7e9ff", eye:"#2f2f46", nose:"#7ac8ff", whisk:"#b7c5d8" },
+    { label:"Baby", base:"#fff6d7", ear:"#ffe4a6", eye:"#2f2f46", nose:"#ffcf66", whisk:"#d8ccb0" },
+  ];
+  function catSVG(s, scale=1){
+    return `
+    <div class="catWrap text-center" data-lag="${scale*1.2}" style="transform-origin:50% 50%;transform:scale(${scale})">
+      <div class="cloud">${s.label}</div>
+      <svg class="cat" width="92" height="92" viewBox="0 0 120 120" aria-label="cat">
+        <defs><radialGradient id="g${s.label}" cx="50%" cy="40%" r="70%">
+          <stop offset="0%" stop-color="${s.base}"/><stop offset="100%" stop-color="${s.base}"/></radialGradient></defs>
+        <path d="M30 35 L50 18 L52 42 Z" fill="${s.ear}"/><path d="M90 35 L70 18 L68 42 Z" fill="${s.ear}"/>
+        <circle cx="60" cy="58" r="34" fill="url(#g${s.label})"/>
+        <g class="eyes">
+          <circle cx="47" cy="52" r="7" fill="#fff"/><circle cx="73" cy="52" r="7" fill="#fff"/>
+          <circle class="pL" cx="47" cy="52" r="3" fill="${s.eye}"/><circle class="pR" cx="73" cy="52" r="3" fill="${s.eye}"/>
+        </g>
+        <polygon points="60,62 56,58 64,58" fill="${s.nose}"/>
+        <rect class="mouth" x="54" y="68" width="12" height="4" rx="2" fill="${s.nose}" opacity=".6"/>
+        <g stroke="${s.whisk}" stroke-width="2">
+          <line x1="28" y1="64" x2="46" y2="64"/><line x1="28" y1="68" x2="46" y2="66"/>
+          <line x1="74" y1="64" x2="92" y2="64"/><line x1="74" y1="66" x2="92" y2="68"/>
+        </g>
+      </svg>
+    </div>`;
   }
-  loader.classList.add('hidden'); bubble.classList.remove('hidden'); answer.textContent=reply; if(localStorage.getItem('g_autoVoice')==='1') speak(reply, detectLang(reply));
-  fetch('/api/log',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({kid:localStorage.getItem('g_kid')||'',mode:S.mode,question:txt,answer:reply,book:S.bookName||null})}).catch(()=>{});
-});
-resetBtn.onclick=()=>{bubble.classList.add('hidden'); resetBtn.classList.add('hidden'); userInput.value='';};
-readBtn.onclick=()=>{const t=answer.textContent.trim(); if(!t) return; speak(t, detectLang(t));};
+  function buildFamily(){
+    E.catFamily.innerHTML = CAT_SKINS.map((s,i)=>catSVG(s,[1,0.9,0.82][i])).join("");
+  }
+  buildFamily();
 
-/* ========= Email Dad ========= */
-emailDad.onclick=async ()=>{
-  const q=userInput.value.trim(); const a=answer.textContent.trim(); if(!a){alert('Nothing to email yet.'); return;}
-  const kid=localStorage.getItem('g_kid')||'Kid'; const r=await fetch('/api/email',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({kid,question:q,answer:a})});
-  if(r.ok) alert('Sent to Dad!'); else alert('Could not send email.');
-};
-
-/* ========= Drawing ========= */
-const DC={ctx:null,drawing:false,lastX:0,lastY:0,rect:null};
-function resizeDrawCanvas(){const dpr=Math.max(1,devicePixelRatio||1); const w=drawCanvas.clientWidth,h=drawCanvas.clientHeight; drawCanvas.width=Math.floor(w*dpr); drawCanvas.height=Math.floor(h*dpr); DC.ctx=drawCanvas.getContext('2d'); DC.ctx.scale(dpr,dpr); DC.ctx.lineCap='round'; DC.ctx.lineJoin='round'; DC.rect=drawCanvas.getBoundingClientRect();}
-function startDraw(x,y){DC.drawing=true; DC.lastX=x; DC.lastY=y;}
-function drawTo(x,y){if(!DC.drawing) return; DC.ctx.strokeStyle=S.draw.erasing?'#ffffff':S.draw.color; DC.ctx.lineWidth=S.draw.size; DC.ctx.globalCompositeOperation=S.draw.erasing?'destination-out':'source-over'; DC.ctx.beginPath(); DC.ctx.moveTo(DC.lastX,DC.lastY); DC.ctx.lineTo(x,y); DC.ctx.stroke(); DC.lastX=x; DC.lastY=y;}
-function endDraw(){DC.drawing=false; DC.ctx.globalCompositeOperation='source-over';}
-function getXY(ev){const r=DC.rect||drawCanvas.getBoundingClientRect(); if(ev.touches&&ev.touches[0]) return {x=ev.touches[0].clientX-r.left,y=ev.touches[0].clientY-r.top}; return {x:ev.clientX-r.left,y:ev.clientY-r.top};}
-drawCanvas.addEventListener('mousedown',e=>startDraw(...Object.values(getXY(e)))); drawCanvas.addEventListener('mousemove',e=>drawTo(...Object.values(getXY(e)))); drawCanvas.addEventListener('mouseup',endDraw); drawCanvas.addEventListener('mouseleave',endDraw);
-drawCanvas.addEventListener('touchstart',e=>startDraw(...Object.values(getXY(e))),{passive:true}); drawCanvas.addEventListener('touchmove',e=>drawTo(...Object.values(getXY(e))),{passive:true}); drawCanvas.addEventListener('touchend',endDraw);
-function setActiveTool(){toolPen.classList.toggle('active',!S.draw.erasing); toolEraser.classList.toggle('active',!!S.draw.erasing);}
-toolPen.onclick=()=>{S.draw.erasing=false; setActiveTool();}; toolEraser.onclick=()=>{S.draw.erasing=true; setActiveTool();};
-toolClear.onclick=()=>{const g=drawCanvas.getContext('2d'); g.save(); g.setTransform(1,0,0,1,0,0); g.clearRect(0,0,drawCanvas.width,drawCanvas.height); g.restore(); guessBox.classList.add('hidden');};
-toolSave.onclick=()=>{const link=document.createElement('a'); link.download='dad-ai-drawing.png'; link.href=drawCanvas.toDataURL('image/png'); link.click();};
-brushSize.oninput=e=>S.draw.size=+e.target.value; document.querySelectorAll('.swatch').forEach(el=>el.onclick=()=>{S.draw.color=el.dataset.color; S.draw.erasing=false; setActiveTool();}); setActiveTool();
-
-/* DoodleNet */
-async function loadDoodleNet(){
-  if(S.draw.modelReady||S.draw.modelLoading) return;
-  S.draw.modelLoading=true; modelStatus.textContent='AI: loading...';
-  const CANDIDATES=['DoodleNet','https://storage.googleapis.com/learnjs-data/doodlenet/model.json','https://storage.googleapis.com/learnjs-data/model-builder/doodle/model.json'];
-  for(const src of CANDIDATES){try{await new Promise(r=>setTimeout(r,0)); S.draw.model=await ml5.imageClassifier(src); S.draw.modelReady=true; modelStatus.textContent='AI: ready ✅'; S.draw.modelLoading=false; return;}catch(e){console.warn('doodlenet failed',src,e);}}
-  S.draw.modelLoading=false; modelStatus.textContent='AI: error';
-}
-toolGuess.onclick=async ()=>{
-  if(!S.draw.modelReady){await loadDoodleNet(); if(!S.draw.modelReady) return;}
-  modelStatus.textContent='AI: guessing...'; guessBox.classList.remove('hidden');
-  const tmp=document.createElement('canvas'); tmp.width=280; tmp.height=280; const tctx=tmp.getContext('2d'); tctx.fillStyle='#fff'; tctx.fillRect(0,0,280,280);
-  const src=drawCanvas; const sr=src.width/src.height; let dx=0,dy=0,dw=280,dh=280; if(sr>1){dh=280/sr; dy=(280-dh)/2;} else if(sr<1){dw=280*sr; dx=(280-dw)/2;} tctx.drawImage(src,dx,dy,dw,dh);
-  S.draw.model.classify(tmp,(err,res)=>{if(err){console.error(err); modelStatus.textContent='AI: error'; return;}
-    modelStatus.textContent='AI: ready ✅'; const top3=(res||[]).slice(0,3); guesses.innerHTML=''; if(!top3.length){guesses.textContent='Draw a bit more and try again!'; return;}
-    const best=top3[0]; const msg=`I think it's a ${best.label}!`; const u=new SpeechSynthesisUtterance(msg); u.lang='en-US'; speechSynthesis.cancel(); speechSynthesis.speak(u);
-    top3.forEach(r=>{const row=document.createElement('div'); row.className='flex items-center gap-2'; const label=document.createElement('div'); label.textContent=r.label; const bar=document.createElement('div'); bar.className='bar flex-1'; const fill=document.createElement('div'); fill.className='fill'; fill.style.width=Math.round(r.confidence*100)+'%'; bar.appendChild(fill); const pct=document.createElement('div'); pct.style.minWidth='36px'; pct.textContent=Math.round(r.confidence*100)+'%'; row.appendChild(label); row.appendChild(bar); row.appendChild(pct); guesses.appendChild(row);});
+  // move pupils with cursor
+  document.body.addEventListener('pointermove',(e)=>{
+    document.querySelectorAll('.cat').forEach(svg=>{
+      const r = svg.getBoundingClientRect();
+      const cx = r.left + r.width/2, cy = r.top + r.height/2;
+      const dx = (e.clientX - cx)/r.width, dy = (e.clientY - cy)/r.height;
+      const mx = Math.max(-1, Math.min(1, dx))*4, my = Math.max(-1, Math.min(1, dy))*4;
+      svg.querySelectorAll('.pL,.pR').forEach(p=>p.setAttribute('transform',`translate(${mx},${my})`));
+    });
   });
-};
 
-/* Text → Procedural drawing */
-drawIt.onclick=(e)=>{e.preventDefault(); const p=(drawPrompt.value||'').toLowerCase(); const g=drawCanvas.getContext('2d'); if(!g) return;
-  g.save(); g.setTransform(1,0,0,1,0,0); g.clearRect(0,0,drawCanvas.width,drawCanvas.height); g.restore();
-  function meow(){const o=new (window.AudioContext||window.webkitAudioContext)(); const osc=o.createOscillator(), gain=o.createGain(); osc.type='triangle'; osc.frequency.setValueAtTime(550,o.currentTime); osc.frequency.exponentialRampToValueAtTime(320,o.currentTime+0.25); gain.gain.setValueAtTime(0.0001,o.currentTime); gain.gain.exponentialRampToValueAtTime(0.3,o.currentTime+0.01); gain.gain.exponentialRampToValueAtTime(0.0001,o.currentTime+0.5); osc.connect(gain).connect(o.destination); osc.start(); osc.stop(o.currentTime+0.5);}
-  const W=drawCanvas.clientWidth, H=drawCanvas.clientHeight; g.fillStyle='#fff'; g.fillRect(0,0,W,H);
-  if(/cat|kitty|قط|قطة/.test(p)){
-    const cx=W/2, cy=H/2+20;
-    g.fillStyle='#ffedd5'; g.beginPath(); g.arc(cx,cy,90,0,Math.PI*2); g.fill();
-    g.fillStyle='#fecaca'; g.beginPath(); g.moveTo(cx-70,cy-70); g.lineTo(cx-20,cy-120); g.lineTo(cx-10,cy-50); g.closePath(); g.fill();
-    g.beginPath(); g.moveTo(cx+70,cy-70); g.lineTo(cx+20,cy-120); g.lineTo(cx+10,cy-50); g.closePath(); g.fill();
-    g.fillStyle='#111'; g.beginPath(); g.arc(cx-35,cy-10,10,0,Math.PI*2); g.fill(); g.beginPath(); g.arc(cx+35,cy-10,10,0,Math.PI*2); g.fill();
-    g.fillStyle='#fff'; g.beginPath(); g.arc(cx-31,cy-14,3,0,Math.PI*2); g.fill(); g.beginPath(); g.arc(cx+39,cy-14,3,0,Math.PI*2); g.fill();
-    g.fillStyle='#fda4af'; g.beginPath(); g.moveTo(cx,cy+10); g.lineTo(cx-8,cy+20); g.lineTo(cx+8,cy+20); g.closePath(); g.fill();
-    g.strokeStyle='#111'; g.lineWidth=3; g.beginPath(); g.moveTo(cx,cy+20); g.quadraticCurveTo(cx,cy+35,cx-18,cy+32); g.moveTo(cx,cy+20); g.quadraticCurveTo(cx,cy+35,cx+18,cy+32); g.stroke();
-    g.beginPath(); g.moveTo(cx-60,cy+20); g.lineTo(cx-110,cy+10); g.moveTo(cx-60,cy+30); g.lineTo(cx-110,cy+35); g.moveTo(cx+60,cy+20); g.lineTo(cx+110,cy+10); g.moveTo(cx+60,cy+30); g.lineTo(cx+110,cy+35); g.stroke();
-    meow();
-  } else if(/house|home|بيت/.test(p)){
-    g.fillStyle='#fecaca'; g.fillRect(W/2-80,H/2,160,120); g.fillStyle='#fca5a5'; g.beginPath(); g.moveTo(W/2-100,H/2); g.lineTo(W/2,H/2-100); g.lineTo(W/2+100,H/2); g.closePath(); g.fill();
-    g.fillStyle='#111'; g.fillRect(W/2-20,H/2+80,40,40);
-  } else if(/rocket|صاروخ/.test(p)){
-    g.fillStyle='#c7d2fe'; g.beginPath(); g.ellipse(W/2,H/2,30,90,0,0,Math.PI*2); g.fill();
-    g.fillStyle='#f59e0b'; g.fillRect(W/2-15,H/2+80,30,40);
-    g.fillStyle='#ef4444'; g.beginPath(); g.moveTo(W/2-25,H/2+30); g.lineTo(W/2-60,H/2+60); g.lineTo(W/2-25,H/2+60); g.closePath(); g.fill();
-    g.beginPath(); g.moveTo(W/2+25,H/2+30); g.lineTo(W/2+60,H/2+60); g.lineTo(W/2+25,H/2+60); g.closePath(); g.fill();
-  } else {
-    g.fillStyle='#94a3b8'; g.font='20px Inter'; g.fillText('Try: cat, house, rocket…', 20, 40);
+  // ========== Settings ==========
+  E.settingsBtn.onclick = ()=>{
+    E.gemKey.value = localStorage.getItem('g_key')||'';
+    E.autoRead.checked = localStorage.getItem('g_auto')==='1';
+    E.settingsDlg.showModal();
+  };
+  E.settingsDlg.addEventListener('close', ()=>{
+    localStorage.setItem('g_key', E.gemKey.value.trim());
+    localStorage.setItem('g_auto', E.autoRead.checked?'1':'0');
+    S.gemKey = E.gemKey.value.trim(); S.autoVoice = E.autoRead.checked;
+  });
+  S.gemKey = localStorage.getItem('g_key')||'';
+  S.autoVoice = localStorage.getItem('g_auto')==='1';
+
+  // ========== Modes ==========
+  E.modeBtns.forEach(b=>b.onclick=()=>setMode(b.dataset.mode));
+  function setMode(m){
+    S.mode = m;
+    E.askBox.classList.toggle('hidden', m!=='ask' && m!=='story');
+    E.drawBox.classList.toggle('hidden', m!=='drawing');
+    E.bookBox.classList.toggle('hidden', m!=='book');
   }
-};
+  setMode('ask');
 
-/* ========= Draw mode toggle ========= */
-function resizeAndMaybeLoad(){resizeDrawCanvas(); loadDoodleNet();}
-</script>
+  // ========== Sounds ==========
+  let started = false;
+  function ensureAudio(){ if(!started){ Tone.start(); started=true; } }
+  const synth = new Tone.Synth().toDestination();
+  const poly = new Tone.PolySynth(Tone.Synth).toDestination(); poly.volume.value=-8;
+  document.body.addEventListener('pointerdown', ensureAudio);
+  boing.onclick = ()=> synth.triggerAttackRelease('C6','8n');
+  zap.onclick   = ()=> synth.triggerAttackRelease('G5','16n');
+  pop.onclick   = ()=> poly.triggerAttackRelease(['C4','E4','A4'],'8n');
+
+  // ========== Ask flow ==========
+  function normQ(s){ return (s||'').toLowerCase().replace(/\s+/g,' ').trim(); }
+  function detectLang(s){ return /[اأ-ي]/.test(s)?'ar':'en'; }
+  function showAnswer(text){ E.placeholder.classList.add('hidden'); E.bubble.classList.remove('hidden'); E.answer.textContent = text; }
+  function showSnips(snips){
+    E.snips.innerHTML = snips.map(s=>`<div class="bg-white/70 text-gray-800 p-2 rounded">${s}</div>`).join('');
+  }
+
+  async function callGemini(prompt){
+    const key = S.gemKey; if(!key) return null;
+    try{
+      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`,{
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ contents:[{ parts:[{text: prompt}]}]})
+      });
+      const j = await r.json();
+      return j.candidates?.[0]?.content?.parts?.[0]?.text || null;
+    }catch(_){ return null; }
+  }
+  function buildPrompt(q, ctx=''){
+    const pre = detectLang(q)==='ar'
+      ? "اجب كأنك أب مرح يشرح لطفل صغير. اجعل الجمل قصيرة وبسيطة."
+      : "Answer like a playful dad talking to a child. Use short, simple sentences.";
+    return pre + (ctx? "\nContext:\n"+ctx : "") + "\n\nQuestion: " + q;
+  }
+  function offlineAsk(q){
+    const en = "I'm not totally sure yet, but let's explore together!";
+    const ar = "لست متأكدًا تمامًا، لكن دعنا نستكشف معًا!";
+    return detectLang(q)==='ar'? ar : en;
+  }
+
+  // Book vector store (super light)
+  function splitToChunks(text){
+    const sents = text.split(/(?<=[\.\!\؟\?])\s+/);
+    const chunks = [];
+    for(let i=0;i<sents.length;i+=3){
+      chunks.push(sents.slice(i,i+3).join(' '));
+    }
+    return chunks;
+  }
+  function score(q, chunk){
+    const a = normQ(q).split(/\W+/).filter(Boolean);
+    const b = normQ(chunk).split(/\W+/).filter(Boolean);
+    if(!a.length||!b.length) return 0;
+    let hit=0; a.forEach(t=>{ if(b.includes(t)) hit++; });
+    return hit/(Math.sqrt(a.length)*Math.sqrt(b.length));
+  }
+  function topBookChunks(q, k=3){
+    const arr = S.book.chunks.map(ch=>({ch, s: score(q,ch)})).sort((x,y)=>y.s-x.s).slice(0,k);
+    return arr.filter(x=>x.s>0.05).map(x=>x.ch);
+  }
+
+  async function searchDadFAQ(q, lang){
+    try{
+      const r = await fetch(`/api/faq/search?lang=${encodeURIComponent(lang)}&q=${encodeURIComponent(normQ(q))}`);
+      const j = await r.json(); return j.hit;
+    }catch{ return null; }
+  }
+
+  async function doAsk(){
+    const q = E.q.value.trim(); if(!q) return;
+    ensureAudio();
+    synth.triggerAttackRelease('E5','8n');
+    const lang = detectLang(q);
+    let answer = '';
+
+    // Book first
+    if (S.book.chunks.length){
+      const snips = topBookChunks(q, 3);
+      if (snips.length){
+        showSnips(snips);
+        const ctx = snips.join("\n\n");
+        const ai = await callGemini(buildPrompt(q, ctx));
+        answer = ai || snips[0];
+      }
+    }
+
+    // Dad FAQ
+    if (!answer){
+      const hit = await searchDadFAQ(q, lang);
+      if (hit && hit.answer) answer = hit.answer;
+    }
+
+    // AI
+    if (!answer){
+      const ai = await callGemini(buildPrompt(q));
+      if (ai) answer = ai;
+    }
+
+    // Fallback
+    if (!answer) answer = offlineAsk(q);
+
+    showAnswer(answer);
+    if (localStorage.getItem('g_auto')==='1') speak(answer, lang);
+
+    // Log
+    fetch('/api/log',{ method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ kid:E.kid.value||'', mode:S.mode, question:q, answer, book:S.book.name||null }) }).catch(()=>{});
+
+    // Help bar
+    showHelpBar(q, answer, lang);
+  }
+  askBtn.onclick = doAsk;
+  magic.onclick = doAsk;
+  readBtn.onclick = ()=> speak(E.answer.textContent || E.q.value, detectLang(E.answer.textContent||E.q.value||'en'));
+
+  // Help bar
+  function showHelpBar(q, a, lang){
+    const old = document.getElementById('helpbar'); if (old) old.remove();
+    const bar = document.createElement('div'); bar.id='helpbar';
+    bar.className='mt-3 flex flex-wrap items-center gap-2';
+    bar.innerHTML = `
+      <span class="tag">${lang==='ar'?'هل فهمت؟':'Did that help?'}</span>
+      <button class="btn-sec px-3 py-2 rounded-lg">${lang==='ar'?'فهمت ✅':'I got it ✅'}</button>
+      <button class="btn-sec px-3 py-2 rounded-lg">${lang==='ar'?'اشرح أكثر 🔁':'Explain more 🔁'}</button>
+      <button class="btn-sec px-3 py-2 rounded-lg">📧 ${lang==='ar'?'اسأل بابا':'Ask Dad'}</button>`;
+    E.answer.appendChild(bar);
+    const [okBtn, moreBtn, dadBtn] = bar.querySelectorAll('button');
+    okBtn.onclick = ()=> bar.remove();
+    moreBtn.onclick = async ()=>{
+      const simple = await callGemini(
+        lang==='ar' ? `اشرح لطفل صغير ببساطة شديدة:\n\n${a}` : `Explain to a small child in 2–3 short, simple sentences:\n\n${a}`
+      );
+      if (simple){ E.answer.childNodes[0].textContent = simple; if (S.autoVoice) speak(simple, lang); }
+    };
+    dadBtn.onclick = async ()=>{
+      const r = await fetch('/api/email',{ method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ kid:E.kid.value||'Kid', question:q, answer:a })});
+      alert(r.ok? (lang==='ar'?'تم الإرسال إلى بابا':'Sent to Dad!') : 'Email failed');
+    };
+  }
+
+  // ========== TTS ==========
+  function speak(text, lang){
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = (lang==='ar')? 'ar-SA' : 'en-US';
+    window.speechSynthesis.cancel(); window.speechSynthesis.speak(u);
+  }
+
+  // ========== Book upload & index ==========
+  let uploadedArrayBuffer = null;
+  bookFile.addEventListener('change', async (ev)=>{
+    const f = ev.target.files[0]; if(!f) return;
+    S.book.name = f.name;
+    bookStatus.textContent = 'Loaded: ' + f.name;
+    uploadedArrayBuffer = await f.arrayBuffer();
+  });
+  buildIdx.onclick = async ()=>{
+    if (!uploadedArrayBuffer){ alert('Upload a book first'); return; }
+    const name = (S.book.name||'').toLowerCase();
+    let txt='';
+    try{
+      if (name.endsWith('.txt')){
+        txt = new TextDecoder().decode(uploadedArrayBuffer);
+      } else if (name.endsWith('.pdf')){
+        const pdf = await pdfjsLib.getDocument({data: uploadedArrayBuffer}).promise;
+        let parts=[]; for(let i=1;i<=pdf.numPages;i++){ const page = await pdf.getPage(i); const t=await page.getTextContent(); parts.push(t.items.map(it=>it.str).join(' ')); }
+        txt = parts.join('\n\n');
+      } else if (name.endsWith('.docx')){
+        const res = await window.mammoth.extractRawText({arrayBuffer: uploadedArrayBuffer}); txt = res.value;
+      } else if (name.endsWith('.epub')){
+        txt = new TextDecoder().decode(uploadedArrayBuffer); // lightweight fallback
+      } else { alert('Unsupported file'); return; }
+    }catch(e){ alert('Could not read file.'); return; }
+    S.book.text = txt;
+    S.book.chunks = (function splitToChunks(t){
+      const sents = t.split(/(?<=[\.\!\؟\?])\s+/); const chunks=[];
+      for(let i=0;i<sents.length;i+=3) chunks.push(sents.slice(i,i+3).join(' '));
+      return chunks;
+    })(txt);
+    bookStatus.textContent = 'Indexed ' + S.book.chunks.length + ' pieces';
+  };
+
+  // ========== Drawing board ==========
+  const g = board.getContext('2d');
+  let drawing=false, erasing=false;
+  g.lineCap='round'; g.lineJoin='round'; g.strokeStyle='#000'; g.lineWidth=8;
+  function ppos(ev){ const r = board.getBoundingClientRect(); const x=(ev.clientX - r.left)*(board.width/r.width); const y=(ev.clientY - r.top)*(board.height/r.height); return {x,y}; }
+  board.addEventListener('pointerdown', ev=>{ drawing=true; const {x,y}=ppos(ev); g.beginPath(); g.moveTo(x,y); });
+  board.addEventListener('pointermove', ev=>{ if(!drawing) return; const {x,y}=ppos(ev); if(erasing){ g.clearRect(x-10,y-10,20,20);} else { g.lineTo(x,y); g.stroke(); } });
+  board.addEventListener('pointerup', ()=> drawing=false);
+  pen.onclick=()=>{ erasing=false; g.strokeStyle=color.value; g.lineWidth=+size.value; };
+  eraser.onclick=()=>{ erasing=true; g.lineWidth=20; };
+  clear.onclick=()=>{ g.fillStyle='#fff'; g.fillRect(0,0,board.width,board.height); g.fillStyle=color.value; };
+  save.onclick=()=>{ const a=document.createElement('a'); a.href=board.toDataURL('image/png'); a.download='drawing.png'; a.click(); };
+  color.oninput=()=> g.strokeStyle=color.value;
+  size.oninput = ()=> g.lineWidth = +size.value;
+  g.fillStyle='#fff'; g.fillRect(0,0,board.width,board.height); g.fillStyle='#000';
+
+  // Guess via ml5 DoodleNet (best-effort)
+  let doodle=null;
+  (async ()=>{
+    try{
+      const s=document.createElement('script'); s.src='https://cdnjs.cloudflare.com/ajax/libs/ml5/0.12.2/ml5.min.js'; document.head.appendChild(s);
+      await new Promise(res=>{s.onload=res;});
+      doodle = await window.ml5.imageClassifier('DoodleNet');
+      aiState.textContent='AI: ready ✅';
+    }catch(_){ aiState.textContent='AI: error'; }
+  })();
+  guess.onclick = async ()=>{
+    if(!doodle){ alert('AI not ready'); return; }
+    doodle.classify(board, (err, res)=>{
+      if(err || !res?.[0]){ alert('No guess'); return; }
+      showAnswer(`I think it's a **${res[0].label}**! (confidence ${Math.round(res[0].confidence*100)}%)`);
+    });
+  };
+
+  // Draw by name (cute animals)
+  drawIt.onclick = ()=>{
+    const p = (whatToDraw.value||'').toLowerCase();
+    const W=board.width, H=board.height;
+    g.fillStyle='#fff'; g.fillRect(0,0,W,H);
+    if (/cat|قط/.test(p)) cuteCat(g,W,H);
+    else if (/dog|كلب/.test(p)) cuteDog(g,W,H);
+    else if (/bunny|rabbit|أرنب/.test(p)) cuteBunny(g,W,H);
+    else if (/bird|عصفور|طائر/.test(p)) cuteBird(g,W,H);
+    else if (/fish|سمكة/.test(p)) cuteFish(g,W,H);
+    else { g.fillStyle='#222'; g.font='28px system-ui'; g.fillText('Try: cat, dog, bunny, bird, fish', 20, 50); }
+  };
+
+  function cuteCat(g,W,H){
+    const cx=W/2, cy=H/2+10;
+    g.fillStyle='#fff2f7'; g.beginPath(); g.arc(cx,cy,90,0,Math.PI*2); g.fill();
+    g.fillStyle='#ffd6e7'; g.beginPath(); g.moveTo(cx-60,cy-90); g.lineTo(cx-30,cy-140); g.lineTo(cx-10,cy-90); g.closePath(); g.fill();
+    g.beginPath(); g.moveTo(cx+60,cy-90); g.lineTo(cx+30,cy-140); g.lineTo(cx+10,cy-90); g.closePath(); g.fill();
+    g.fillStyle='#1f2937'; g.beginPath(); g.arc(cx-25,cy-10,8,0,Math.PI*2); g.fill(); g.beginPath(); g.arc(cx+25,cy-10,8,0,Math.PI*2); g.fill();
+    g.fillStyle='#ff9ec2'; g.beginPath(); g.arc(cx,cy+15,8,0,Math.PI*2); g.fill();
+  }
+  function cuteDog(g,W,H){
+    const cx=W/2, cy=H/2+10;
+    g.fillStyle='#ffe8cc'; g.beginPath(); g.arc(cx,cy,90,0,Math.PI*2); g.fill();
+    g.fillStyle='#d9b38c'; g.beginPath(); g.arc(cx-65,cy-50,30,0,Math.PI*2); g.fill(); g.beginPath(); g.arc(cx+65,cy-50,30,0,Math.PI*2); g.fill();
+    g.fillStyle='#1f2937'; g.beginPath(); g.arc(cx-35,cy-10,10,0,Math.PI*2); g.fill(); g.beginPath(); g.arc(cx+35,cy-10,10,0,Math.PI*2); g.fill();
+    g.fillStyle='#ffadad'; g.beginPath(); g.arc(cx,cy+20,10,0,Math.PI*2); g.fill();
+    g.strokeStyle='#1f2937'; g.lineWidth=3; g.beginPath(); g.moveTo(cx,cy+25); g.quadraticCurveTo(cx,cy+40,cx-20,cy+36); g.moveTo(cx,cy+25); g.quadraticCurveTo(cx,cy+40,cx+20,cy+36); g.stroke();
+  }
+  function cuteBunny(g,W,H){
+    const cx=W/2, cy=H/2+20;
+    g.fillStyle='#fff2f7'; g.beginPath(); g.arc(cx,cy,90,0,Math.PI*2); g.fill();
+    g.fillStyle='#ffd6e7'; g.fillRect(cx-60,cy-120,30,70); g.fillRect(cx+30,cy-120,30,70);
+    g.fillStyle='#1f2937'; g.beginPath(); g.arc(cx-30,cy-10,8,0,Math.PI*2); g.fill(); g.beginPath(); g.arc(cx+30,cy-10,8,0,Math.PI*2); g.fill();
+    g.fillStyle='#ff9ec2'; g.beginPath(); g.arc(cx,cy+15,8,0,Math.PI*2); g.fill();
+  }
+  function cuteBird(g,W,H){
+    const cx=W/2, cy=H/2;
+    g.fillStyle='#d0f0ff'; g.beginPath(); g.ellipse(cx,cy,80,60,0,0,Math.PI*2); g.fill();
+    g.fillStyle='#1f2937'; g.beginPath(); g.arc(cx+20,cy-10,6,0,Math.PI*2); g.fill();
+    g.fillStyle='#ffcc66'; g.beginPath(); g.moveTo(cx+50,cy); g.lineTo(cx+75,cy+10); g.lineTo(cx+50,cy+20); g.closePath(); g.fill();
+  }
+  function cuteFish(g,W,H){
+    const cx=W/2, cy=H/2;
+    g.fillStyle='#c8e6ff'; g.beginPath(); g.ellipse(cx,cy,100,50,0,Math.PI*2); g.fill();
+    g.fillStyle='#a5d8ff'; g.beginPath(); g.moveTo(cx-110,cy); g.lineTo(cx-140,cy-30); g.lineTo(cx-140,cy+30); g.closePath(); g.fill();
+    g.fillStyle='#1f2937'; g.beginPath(); g.arc(cx+40,cy-5,6,0,Math.PI*2); g.fill();
+  }
+
+  // ========== Dad dashboard ==========
+  dadTab.onclick = ()=> dadDlg.showModal();
+  dadLoad.onclick = async ()=>{
+    const pwd = dadPwd.value.trim(); if(!pwd){ alert('Password required'); return; }
+    const auth = 'Basic ' + btoa('dad:'+pwd);
+    const rows = await fetch('/api/admin/list', { headers:{authorization:auth} }).then(r=>r.json()).catch(()=>[]);
+    faqList.innerHTML = rows.slice(0,50).map(r=>`
+      <div class="p-3 rounded bg-white/80">
+        <div class="text-xs text-gray-600">${r.ts} • ${r.mode}</div>
+        <div class="font-semibold text-gray-900">${(r.question||'')}</div>
+        <textarea data-q="${(r.question||'').replaceAll('"','&quot;')}" class="w-full mt-1 p-2 rounded border" rows="3">${(r.answer||'')}</textarea>
+        <div class="mt-1 flex gap-2">
+          <button data-lang="en" class="save btn-sec px-3 py-1 rounded">Save as EN</button>
+          <button data-lang="ar" class="save btn-sec px-3 py-1 rounded">Save as AR</button>
+        </div>
+      </div>`).join('');
+
+    faqList.querySelectorAll('.save').forEach(btn=>{
+      btn.onclick = async (ev)=>{
+        ev.preventDefault();
+        const box = btn.closest('div'); const ta = box.querySelector('textarea');
+        const question = ta.dataset.q; const answer = ta.value; const lang = btn.dataset.lang;
+        const ok = await fetch('/api/faq/upsert', {
+          method:'POST', headers:{'Content-Type':'application/json', authorization:auth},
+          body: JSON.stringify({lang, question, answer})
+        }).then(r=>r.ok);
+        alert(ok ? 'Saved ✅' : 'Failed');
+      };
+    });
+  };
+  </script>
 </body>
 </html>
