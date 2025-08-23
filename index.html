@@ -4,23 +4,21 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Dad AI — Play • Learn • Ask</title>
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;700&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
 
-<!-- pdf.js for PDF parsing -->
+<!-- Books: PDF / DOCX / EPUB -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script> if (window.pdfjsLib) { pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"; } </script>
-
-<!-- mammoth for DOCX -> HTML (then to text) -->
 <script src="https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"></script>
-
-<!-- epub.js for EPUB parsing -->
 <script src="https://cdn.jsdelivr.net/npm/epubjs@0.3.93/dist/epub.min.js"></script>
 
-<!-- ml5.js (DoodleNet) for drawing recognition -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/ml5/0.12.2/ml5.min.js"></script>
+<!-- Drawing AI: TensorFlow.js then ml5.js -->
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.18.0/dist/tf.min.js"></script>
+<script src="https://unpkg.com/ml5@0.12.2/dist/ml5.min.js"></script>
 
 <style>
   :root{ --bg1:#0f172a; --bg2:#1d1452; --card:rgba(255,255,255,.14); --accent:#ffd54a; }
@@ -34,7 +32,6 @@
       linear-gradient(135deg,var(--bg1),var(--bg2));
     overflow:hidden;
   }
-
   .blob{position:fixed;border-radius:50%;filter:blur(40px);opacity:.35;pointer-events:none;mix-blend-mode:screen}
   .b1{width:520px;height:520px;background:#8b5cf6;left:-120px;top:-160px;animation:float 12s ease-in-out infinite}
   .b2{width:420px;height:420px;background:#22d3ee;right:-120px;top:40px;animation:float 14s ease-in-out infinite reverse}
@@ -51,10 +48,6 @@
   .btn:hover{transform:translateY(-2px)} .btn:active{transform:translateY(0)}
   .btn-prim{background:var(--accent);color:#222;font-weight:800}
   .btn-sec{background:rgba(255,255,255,.9);color:#222}
-
-  #catWrap{will-change:transform;transition:transform .02s linear;transform:translate3d(0,0,0);filter:drop-shadow(0 10px 30px rgba(0,0,0,.35))}
-  .blink{animation:blink 4s infinite}
-  @keyframes blink{0%,97%,100%{transform:scaleY(1)}98%{transform:scaleY(.12)}}
   .tag{padding:.25rem .6rem;border-radius:999px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.25);font-size:.8rem}
 
   .bubble{position:relative;background:#fff;color:#1f2937;border-radius:16px;padding:1.1rem 1.3rem}
@@ -68,7 +61,8 @@
   .ring{outline:none;border:1px solid transparent}
   .ring:focus{border-color:#ffe082;box-shadow:0 0 0 4px rgba(255,212,74,.25)}
 
-  .sr-only{position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden}
+  .blink{animation:blink 4s infinite}
+  @keyframes blink{0%,97%,100%{transform:scaleY(1)}98%{transform:scaleY(.12)}}
 
   /* Drawing toolbar */
   .tool-btn{background:rgba(255,255,255,.9);color:#111;border-radius:12px;padding:.5rem .7rem;display:flex;align-items:center;gap:.5rem}
@@ -76,6 +70,10 @@
   .swatch{width:22px;height:22px;border-radius:6px;border:2px solid rgba(0,0,0,.15);cursor:pointer}
   .bar{height:8px;border-radius:6px;background:rgba(255,255,255,.35);overflow:hidden}
   .fill{height:100%;background:#ffd54a}
+
+  /* Cat family positions */
+  #catFamily{display:flex; gap:10px; align-items:center}
+  .catWrap{will-change:transform;transition:transform .03s linear;filter:drop-shadow(0 10px 30px rgba(0,0,0,.35))}
 </style>
 </head>
 <body>
@@ -85,27 +83,32 @@
   <!-- Header -->
   <header class="glass px-5 py-3 flex items-center justify-between">
     <div class="flex items-center gap-4">
-      <div id="catWrap" aria-label="Dad AI cat">
-        <svg id="cat" width="118" height="118" viewBox="0 0 120 120">
-          <path d="M25 35 L45 15 L48 40 Z" fill="#3b3f67"/>
-          <path d="M95 35 L75 15 L72 40 Z" fill="#3b3f67"/>
-          <circle cx="60" cy="55" r="32" fill="#2f3450"/>
-          <ellipse cx="60" cy="62" rx="24" ry="16" fill="#3a3f61"/>
-          <g id="eyes">
-            <circle cx="48" cy="52" r="7.5" fill="#ffd54a" class="blink"/>
-            <circle cx="72" cy="52" r="7.5" fill="#ffd54a" class="blink"/>
-            <circle id="pL" cx="48" cy="52" r="3" fill="#0f1228"/>
-            <circle id="pR" cx="72" cy="52" r="3" fill="#0f1228"/>
-          </g>
-          <polygon points="58,60 62,60 60,62.5" fill="#ff8fab"/>
-          <rect id="mouth" x="54" y="66" width="12" height="4" rx="2" fill="#83e377"/>
-          <line x1="30" y1="64" x2="48" y2="64" stroke="#bfc3d9" stroke-width="2"/>
-          <line x1="30" y1="68" x2="48" y2="66" stroke="#bfc3d9" stroke-width="2"/>
-          <line x1="72" y1="64" x2="90" y2="64" stroke="#bfc3d9" stroke-width="2"/>
-          <line x1="72" y1="66" x2="90" y2="68" stroke="#bfc3d9" stroke-width="2"/>
-          <ellipse cx="60" cy="96" rx="34" ry="16" fill="#50557a"/>
-        </svg>
+      <!-- Cat family -->
+      <div id="catFamily" aria-label="Dad AI cat family">
+        <!-- We’ll clone this template 4x with different sizes/offsets -->
+        <div class="catWrap" data-lag="1.0" data-scale="1.0">
+          <svg class="cat" width="88" height="88" viewBox="0 0 120 120">
+            <path d="M25 35 L45 15 L48 40 Z" fill="#3b3f67"/>
+            <path d="M95 35 L75 15 L72 40 Z" fill="#3b3f67"/>
+            <circle cx="60" cy="55" r="32" fill="#2f3450"/>
+            <ellipse cx="60" cy="62" rx="24" ry="16" fill="#3a3f61"/>
+            <g class="eyes">
+              <circle cx="48" cy="52" r="7.5" fill="#ffd54a" class="blink"/>
+              <circle cx="72" cy="52" r="7.5" fill="#ffd54a" class="blink"/>
+              <circle class="pL" cx="48" cy="52" r="3" fill="#0f1228"/>
+              <circle class="pR" cx="72" cy="52" r="3" fill="#0f1228"/>
+            </g>
+            <polygon points="58,60 62,60 60,62.5" fill="#ff8fab"/>
+            <rect class="mouth" x="54" y="66" width="12" height="4" rx="2" fill="#83e377"/>
+            <line x1="30" y1="64" x2="48" y2="64" stroke="#bfc3d9" stroke-width="2"/>
+            <line x1="30" y1="68" x2="48" y2="66" stroke="#bfc3d9" stroke-width="2"/>
+            <line x1="72" y1="64" x2="90" y2="64" stroke="#bfc3d9" stroke-width="2"/>
+            <line x1="72" y1="66" x2="90" y2="68" stroke="#bfc3d9" stroke-width="2"/>
+            <ellipse cx="60" cy="96" rx="34" ry="16" fill="#50557a"/>
+          </svg>
+        </div>
       </div>
+
       <div>
         <div class="flex items-center gap-2">
           <h1 class="font-[Fredoka] text-3xl">Dad <span class="text-[#ffe082]">AI</span></h1>
@@ -183,7 +186,6 @@
             <input id="brushSize" type="range" min="2" max="32" value="8"/>
           </div>
         </div>
-
         <div id="guessBox" class="mt-3 hidden">
           <h4 class="font-semibold mb-2">AI guesses</h4>
           <div id="guesses" class="space-y-2 text-sm"></div>
@@ -208,14 +210,14 @@
     <!-- Right panel -->
     <section class="glass p-4 md:col-span-3 overflow-hidden relative">
       <div id="ansWrap" class="h-full w-full relative">
-        <!-- Chat bubble (hidden in drawing mode) -->
+        <!-- Chat bubble -->
         <div class="w-full h-full flex items-center justify-center">
           <div id="bubble" class="bubble hidden max-w-[90%] md:max-w-[680px]">
             <p id="answer-text" class="text-lg md:text-xl leading-relaxed"></p>
           </div>
           <div id="loader" class="loader hidden"></div>
         </div>
-        <!-- Drawing canvas (shown in drawing mode) -->
+        <!-- Drawing canvas -->
         <canvas id="drawCanvas" class="hidden absolute inset-0 w-full h-full bg-white rounded-xl"></canvas>
       </div>
 
@@ -252,7 +254,7 @@
 <div aria-live="polite" aria-atomic="true" class="sr-only" id="sr"></div>
 
 <script>
-/* ==== helpers (lang, stopwords) ==== */
+/* ================= Helpers ================= */
 function detectLang(text){
   const ar = (text.match(/[\u0600-\u06FF]/g)||[]).length;
   const en = (text.match(/[A-Za-z]/g)||[]).length;
@@ -263,7 +265,7 @@ function dirFor(text){ return detectLang(text)==='ar' ? 'rtl' : 'ltr'; }
 const STOP_EN = new Set("a an and are as at be but by for from has have if in into is it its of on or that the to was were will with what when where who why how your you".split(/\s+/));
 const STOP_AR = new Set("في على من إلى عن أن إن كان تكون تكونوا الذي التي الذين التي هذا هذه ذلك هناك هنا هي هو هم هن ثم حيث كما أي اذا إذا أو و يا ما مازال لماذا متى كيف لأن لدى عند بعد قبل بين كل بعض جدًا جدا قد لقد مثلا مثلاً إنّ أنّ إلا إلاّ إلى".split(/\s+/));
 
-/* ==== State & elements ==== */
+/* ================= State & DOM ================= */
 const S = {
   mode:'question',
   apiKey: localStorage.getItem('g_apiKey') || '',
@@ -273,13 +275,12 @@ const S = {
   lastLang: 'en',
   // book index
   bookName:'', bookText:'', chunks:[], idf:new Map(), tfidfNorms:[], tfs:[], ready:false,
-  // draw state
-  draw:{ color:'#000000', size:8, erasing:false, model:null, modelReady:false }
+  // drawing
+  draw:{ color:'#000000', size:8, erasing:false, model:null, modelReady:false },
+  // cats
+  followers:[]
 };
 const E = {
-  catWrap: document.getElementById('catWrap'), eyes: document.getElementById('eyes'),
-  pL: document.getElementById('pL'), pR: document.getElementById('pR'), mouth: document.getElementById('mouth'),
-
   modeSwitcher: document.getElementById('modeSwitcher'),
   bookPanel: document.getElementById('bookPanel'), bookFile: document.getElementById('bookFile'),
   indexBtn: document.getElementById('indexBtn'), bookStatus: document.getElementById('bookStatus'),
@@ -294,11 +295,8 @@ const E = {
   kidName: document.getElementById('kidName'), settingsBtn: document.getElementById('settingsBtn'), settingsDlg: document.getElementById('settingsDlg'),
   apiKeyInput: document.getElementById('apiKeyInput'), autoVoice: document.getElementById('autoVoice'), saveSettings: document.getElementById('saveSettings'),
 
-  sr: document.getElementById('sr'),
-
   newQuiz: document.getElementById('newQuiz'), quizBox: document.getElementById('quizBox'),
 
-  // drawing UI
   drawCanvas: document.getElementById('drawCanvas'),
   drawTools: document.getElementById('drawTools'),
   toolPen: document.getElementById('toolPen'),
@@ -309,10 +307,12 @@ const E = {
   brushSize: document.getElementById('brushSize'),
   modelStatus: document.getElementById('modelStatus'),
   guessBox: document.getElementById('guessBox'),
-  guesses: document.getElementById('guesses')
+  guesses: document.getElementById('guesses'),
+
+  catFamily: document.getElementById('catFamily')
 };
 
-/* ==== fun sfx ==== */
+/* ================= Fun SFX ================= */
 const synth = new Tone.Synth().toDestination();
 const poly  = new Tone.PolySynth(Tone.Synth).toDestination(); poly.volume.value = -6;
 function sfx(n){ if(n==='boing'){ synth.triggerAttackRelease('C4','8n'); setTimeout(()=>synth.triggerAttackRelease('G3','16n'),100);}
@@ -320,22 +320,68 @@ function sfx(n){ if(n==='boing'){ synth.triggerAttackRelease('C4','8n'); setTime
                  if(n==='pop'){ synth.triggerAttackRelease('A4','32n'); } }
 document.querySelectorAll('[data-sfx]').forEach(b=>b.onclick=()=>sfx(b.dataset.sfx));
 
-/* ==== Cat follow & eyes ==== */
-let tx=0, ty=0, rx=0, ry=0, last=performance.now();
-const DRIFT=46, TILT=9;
-function setTarget(x,y){ const nx=(x/innerWidth)*2-1, ny=(y/innerHeight)*2-1; tx=nx*DRIFT; ty=ny*DRIFT; }
-addEventListener('mousemove', e=> setTarget(e.clientX,e.clientY));
-addEventListener('touchmove', e=> { if(e.touches[0]) setTarget(e.touches[0].clientX, e.touches[0].clientY)}, {passive:true});
-function followTick(t){ const dt=Math.min((t-last)/16.67,2); last=t; const ease=.12*dt; rx+=(tx-rx)*ease; ry+=(ty-ry)*ease;
-  const tilt=(rx/DRIFT)*TILT; E.catWrap.style.transform=`translate3d(${rx}px,${ry}px,0) rotate(${tilt}deg)`; requestAnimationFrame(followTick); }
-requestAnimationFrame(followTick);
-document.body.addEventListener('mousemove', e=>{
-  const r = E.eyes.getBoundingClientRect(); const cx=r.left+r.width/2, cy=r.top+r.height/2;
-  const a=Math.atan2(e.clientY-cy, e.clientX-cx), max=3; const dx=Math.cos(a)*max, dy=Math.sin(a)*max;
-  E.pL.style.transform=`translate(${dx}px,${dy}px)`; E.pR.style.transform=`translate(${dx}px,${dy}px)`;
-});
+/* ================= Cat Family (4 followers) ================= */
+function cloneCats(){
+  const template = E.catFamily.querySelector('.catWrap');
+  const configs = [
+    {lag:1.0, scale:1.00},
+    {lag:1.8, scale:0.88},
+    {lag:2.6, scale:0.78},
+    {lag:3.4, scale:0.70}
+  ];
+  E.catFamily.innerHTML = '';
+  configs.forEach((c,i)=>{
+    const node = template.cloneNode(true);
+    node.dataset.lag = c.lag; node.style.transformOrigin = '50% 50%';
+    node.style.transform = `scale(${c.scale})`;
+    E.catFamily.appendChild(node);
+  });
+}
+cloneCats();
+function mouthOpen(svg, level=1){
+  const m = svg.querySelector('.mouth'); if(!m) return;
+  const h = 4 + Math.min(1,Math.max(0,level))*10;
+  m.setAttribute('height',h);
+  m.setAttribute('y', 66-(h-4)/2);
+}
+function catSpeak(text, lang='en'){
+  if(!('speechSynthesis' in window)) return;
+  const u = new SpeechSynthesisUtterance(text);
+  u.rate = lang==='ar' ? 1.0 : 1.02; u.pitch = lang==='ar' ? 1.1 : 1.25; u.lang = (lang==='ar') ? 'ar-SA' : 'en-US';
+  const vs = speechSynthesis.getVoices(); const pick = vs.find(v=>v.lang.startsWith(lang==='ar'?'ar':'en')) || vs[0]; if(pick) u.voice = pick;
 
-/* ==== Tiny quiz ==== */
+  const svgs = [...document.querySelectorAll('#catFamily .cat')];
+  let timer = setInterval(()=> svgs.forEach(s=>{ mouthOpen(s, Math.random()); setTimeout(()=>mouthOpen(s,0),90); }), 230);
+  u.onend = ()=>{ clearInterval(timer); svgs.forEach(s=>mouthOpen(s,0)); };
+
+  speechSynthesis.cancel(); speechSynthesis.speak(u);
+}
+let targetX=0,targetY=0, last=performance.now();
+addEventListener('mousemove', e=>{ targetX=e.clientX; targetY=e.clientY; });
+addEventListener('touchmove', e=>{ if(e.touches[0]){ targetX=e.touches[0].clientX; targetY=e.touches[0].clientY; }},{passive:true});
+function catFollowTick(t){
+  const dt=Math.min((t-last)/16.67,2); last=t;
+  const wraps = [...document.querySelectorAll('#catFamily .catWrap')];
+  wraps.forEach((wrap,idx)=>{
+    const lag = parseFloat(wrap.dataset.lag||1);
+    if(!S.followers[idx]) S.followers[idx] = {x:0,y:0};
+    const f = S.followers[idx];
+    const nx = (targetX/innerWidth*2-1)*40, ny = (targetY/innerHeight*2-1)*40;
+    f.x += (nx - f.x) * (0.12/lag) * dt;
+    f.y += (ny - f.y) * (0.12/lag) * dt;
+    const tilt = (f.x/40)*8;
+    wrap.style.transform = `translate3d(${f.x}px,${f.y}px,0) rotate(${tilt}deg) ${wrap.style.transform.includes('scale')?'':'scale(1)'}`;
+    // pupils
+    const eyes = wrap.querySelector('.eyes').getBoundingClientRect();
+    const cx=eyes.left+eyes.width/2, cy=eyes.top+eyes.height/2;
+    const a=Math.atan2((targetY-cy),(targetX-cx)); const max=3; const dx=Math.cos(a)*max, dy=Math.sin(a)*max;
+    wrap.querySelectorAll('.pL,.pR').forEach(p=>p.style.transform=`translate(${dx}px,${dy}px)`);
+  });
+  requestAnimationFrame(catFollowTick);
+}
+requestAnimationFrame(catFollowTick);
+
+/* ================= Quiz ================= */
 function newQuiz(){
   const a=Math.floor(Math.random()*6)+1, b=Math.floor(Math.random()*6)+1;
   const fruit = ['🍌','🍎','🍓','🍇','🍉'][Math.floor(Math.random()*5)];
@@ -347,7 +393,7 @@ function newQuiz(){
 }
 E.newQuiz.onclick=(e)=>{e.preventDefault(); newQuiz()};
 
-/* ==== Modes & UI ==== */
+/* ================= Modes & UI ================= */
 function setMode(m){
   S.mode=m;
   [...E.modeSwitcher.querySelectorAll('button')].forEach(b=>{
@@ -358,7 +404,6 @@ function setMode(m){
   E.bookPanel.classList.toggle('hidden', m!=='book');
   E.ctxPanel.classList.add('hidden');
 
-  // show/hide chat vs canvas
   E.bubble.classList.toggle('hidden', drawing);
   E.loader.classList.add('hidden');
   E.drawCanvas.classList.toggle('hidden', !drawing);
@@ -366,86 +411,72 @@ function setMode(m){
   E.form.classList.toggle('hidden', drawing);
 
   if(m==='question'){ E.input.placeholder="Why is the sky blue?"; E.submit.textContent='Ask!'; }
-  if(m==='story'){    E.input.placeholder="A tiny story about a brave cat..."; E.submit.textContent='Tell Story ✨'; }
+  if(m==='story'){    E.input.placeholder="A tiny story about a brave cat family..."; E.submit.textContent='Tell Story ✨'; }
   if(m==='book'){     E.input.placeholder="Ask about your book... (يمكنك السؤال بالعربية)"; E.submit.textContent='Ask Book 📚'; }
   if(drawing){ resizeDrawCanvas(); loadDoodleNet(); }
 }
 E.modeSwitcher.addEventListener('click', (e)=> { if(e.target.tagName!=='BUTTON') return; setMode(e.target.dataset.mode); });
 setMode('question');
 
-/* ==== Talking cat mouth / voice ==== */
-let flapTimer=null;
-function mouthOpen(level=1){ const h=4 + Math.min(1,Math.max(0,level))*10; E.mouth.setAttribute('height',h); E.mouth.setAttribute('y', 66-(h-4)/2); }
-function mouthIdle(){ mouthOpen(0); }
-function speak(text, lang='en'){
-  if(!('speechSynthesis' in window)) return;
-  const u = new SpeechSynthesisUtterance(text);
-  u.rate = lang==='ar' ? 1.0 : 1.02; u.pitch = lang==='ar' ? 1.1 : 1.25; u.lang = (lang==='ar') ? 'ar-SA' : 'en-US';
-  const vs = speechSynthesis.getVoices(); const pick = vs.find(v=>v.lang.startsWith(lang==='ar'?'ar':'en')) || vs[0]; if(pick) u.voice = pick;
-  clearInterval(flapTimer);
-  u.onboundary = ()=>{ mouthOpen(.9); setTimeout(mouthIdle, 100); };
-  u.onstart = ()=>{ mouthOpen(.6); };
-  u.onend = ()=>{ mouthIdle(); };
-  u.onerror = ()=>{ mouthIdle(); };
-  flapTimer = setInterval(()=>{ mouthOpen(Math.random()); setTimeout(mouthIdle, 90); }, 230);
-  speechSynthesis.cancel(); speechSynthesis.speak(u);
-}
+/* ================= Typing + voice ================= */
+function speak(text, lang='en'){ catSpeak(text, lang); }
 function typeOut(text){
-  const lang = detectLang(text); const a = document.getElementById('answer-text'); a.setAttribute('dir', lang==='ar'?'rtl':'ltr');
-  a.textContent=''; let i=0; const t=setInterval(()=>{ if(i<text.length){ a.textContent+=text.charAt(i); i++; } else { clearInterval(t); if(S.autoVoice) speak(a.textContent, lang); } }, 26);
+  clearInterval(S.typing);
+  const lang = detectLang(text); E.answer.setAttribute('dir', lang==='ar'?'rtl':'ltr');
+  E.answer.textContent=''; E.bubble.classList.remove('hidden');
+  let i=0;
+  S.typing=setInterval(()=>{ if(i<text.length){ E.answer.textContent+=text.charAt(i); i++; }
+    else{ clearInterval(S.typing); if(S.autoVoice) speak(E.answer.textContent, lang); } }, 26);
 }
 
-/* ==== Gemini (optional) ==== */
+/* ================= Gemini (optional) ================= */
 async function callGemini(prompt){
-  document.getElementById('loader').classList.remove('hidden'); document.getElementById('bubble').classList.add('hidden');
+  E.loader.classList.remove('hidden'); E.bubble.classList.add('hidden');
   const key=S.apiKey.trim();
-  if(!key){ await new Promise(r=>setTimeout(r,300)); document.getElementById('loader').classList.add('hidden'); return null; }
+  if(!key){ await new Promise(r=>setTimeout(r,300)); E.loader.classList.add('hidden'); return null; }
   try{
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${encodeURIComponent(key)}`;
     const r = await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{parts:[{text:prompt}]}]})});
     if(!r.ok) throw new Error(await r.text());
     const data=await r.json(); return (data?.candidates?.[0]?.content?.parts?.[0]?.text||'').trim();
   }catch(e){ console.error(e); return null; }
-  finally{ document.getElementById('loader').classList.add('hidden'); }
+  finally{ E.loader.classList.add('hidden'); }
 }
-
-/* ==== Prompt builder ==== */
 function buildPrompt(txt, ctx=''){
   const lang = detectLang(txt || ctx);
   if(S.mode==='book'){
     if(lang==='ar') return `أجب كصديق لطيف لطفل بجمل قصيرة جدًا (٢–٤)، مستخدمًا فقط السياق.\n\nالسياق:\n${ctx}\n\nالسؤال: ${txt}`;
-    return `Answer a child in 2–4 short sentences using ONLY the context.\n\nContext:\n${ctx}\n\nQuestion: ${txt}`;
+    return `Answer a child in 2–4 short sentences using ONLY the context.\n\nContext:\n${ctx}\n\nQuestion:\n${txt}`;
   }
   if(lang==='ar'){
-    if(S.mode==='question') return `أجب لطفل بجمل قصيرة جدًا (٢–٤) مع كلمة صوتية مرحة ورمز تعبيري لطيف. السؤال: "${txt}"`;
-    if(S.mode==='story')   return `اكتب قصة قصيرة جدًا (حتى ٥ جمل) سعيدة عن: "${txt}". استخدم رمزين تعبيريين.`;
+    if(S.mode==='question') return `أجب لطفل بجمل قصيرة (٢–٤) مع لمسة مرحة. السؤال: "${txt}"`;
+    if(S.mode==='story')   return `اكتب قصة قصيرة جدًا وسعيدة (حتى ٥ جمل) عن: "${txt}".`;
   } else {
-    if(S.mode==='question') return `Answer a young kid in 2–4 short sentences with simple words and one cute emoji. Question: "${txt}"`;
+    if(S.mode==='question') return `Answer a young kid in 2–4 short sentences using simple words. Question: "${txt}"`;
     if(S.mode==='story')   return `Tell a super short, happy story (≤5 sentences) for a 6‑year‑old about: "${txt}".`;
   }
 }
 
-/* ==== STT & read ==== */
+/* ================= STT & Read ================= */
 let rec=null, listening=false;
 function getRec(){ const R = window.SpeechRecognition||window.webkitSpeechRecognition; if(!R) return null; if(!rec){ rec=new R(); rec.interimResults=false; rec.maxAlternatives=1; } return rec; }
-document.getElementById('userInput').addEventListener('input', e=> S.lastLang = detectLang(e.target.value||'') );
-document.getElementById('micBtn').onclick=()=>{
+E.input.addEventListener('input', ()=> S.lastLang = detectLang(E.input.value||'') );
+E.micBtn.onclick=()=>{
   const r=getRec(); if(!r){ alert('Microphone not supported. Try Chrome.'); return; }
   r.lang = (S.lastLang==='ar') ? 'ar-SA' : 'en-US';
   if(listening){ r.stop(); return; }
-  r.start(); listening=true; document.getElementById('micIcon').textContent='🛑';
-  r.onresult=(ev)=>{ const t=ev.results[0][0].transcript; document.getElementById('userInput').value=t; S.lastLang = detectLang(t); listening=false; document.getElementById('micIcon').textContent='🎤'; };
-  r.onend=()=>{ listening=false; document.getElementById('micIcon').textContent='🎤'; };
+  r.start(); listening=true; E.micIcon.textContent='🛑';
+  r.onresult=(ev)=>{ const t=ev.results[0][0].transcript; E.input.value=t; S.lastLang = detectLang(t); listening=false; E.micIcon.textContent='🎤'; };
+  r.onend=()=>{ listening=false; E.micIcon.textContent='🎤'; };
 };
-document.getElementById('readBtn').onclick=()=>{ const txt=document.getElementById('answer-text').textContent.trim(); if(!txt) return; speak(txt, detectLang(txt)); };
+E.read.onclick=()=>{ const txt=E.answer.textContent.trim(); if(!txt) return; speak(txt, detectLang(txt)); };
 
-/* ==== Settings ==== */
-document.getElementById('settingsBtn').onclick=()=>{ document.getElementById('apiKeyInput').value=S.apiKey; document.getElementById('autoVoice').checked=S.autoVoice; document.getElementById('settingsDlg').showModal(); };
-document.getElementById('saveSettings').onclick=()=>{ S.apiKey=document.getElementById('apiKeyInput').value.trim(); S.autoVoice=!!document.getElementById('autoVoice').checked;
-  localStorage.setItem('g_apiKey',S.apiKey); localStorage.setItem('g_autoVoice', S.autoVoice?'1':'0'); document.getElementById('settingsDlg').close(); };
+E.settingsBtn.onclick=()=>{ E.apiKeyInput.value=S.apiKey; E.autoVoice.checked=S.autoVoice; settingsDlg.showModal(); };
+E.saveSettings.onclick=()=>{ S.apiKey=E.apiKeyInput.value.trim(); S.autoVoice=!!E.autoVoice.checked;
+  localStorage.setItem('g_apiKey',S.apiKey); localStorage.setItem('g_autoVoice', S.autoVoice?'1':'0'); settingsDlg.close(); };
 document.getElementById('kidName').value = localStorage.getItem('g_kid')||''; document.getElementById('kidName').onchange=()=>{ S.kid=document.getElementById('kidName').value.trim(); localStorage.setItem('g_kid',S.kid); };
 
-/* ==== Book engine (PDF/TXT/DOCX/EPUB) ==== */
+/* ================= Book engine ================= */
 function stripHTML(html){ const d=document.createElement('div'); d.innerHTML=html; return d.textContent||d.innerText||''; }
 async function readTXT(file){ return (await file.text()).replace(/\r\n/g,'\n'); }
 async function readPDF(file){ const buf = await file.arrayBuffer(); const pdf = await pdfjsLib.getDocument({data:buf}).promise; let out=''; for(let p=1;p<=pdf.numPages;p++){ const page=await pdf.getPage(p); const content=await page.getTextContent(); out += content.items.map(it=>it.str).join(' ') + '\n'; } return out; }
@@ -456,10 +487,10 @@ function chunkify(text, size=1200, overlap=160){ const chunks=[]; let i=0; while
 function buildIndex(chunks){ const dfs=new Map(), tfs=[]; chunks.forEach((c)=>{ const toks = tokenize(c); const tf=new Map(); toks.forEach(w=> tf.set(w,(tf.get(w)||0)+1)); tfs.push(tf); const seen=new Set(); tf.forEach((_,w)=>{ if(!seen.has(w)){ dfs.set(w,(dfs.get(w)||0)+1); seen.add(w);} }); }); const N=chunks.length, idf=new Map(); dfs.forEach((df,w)=> idf.set(w, Math.log(1 + N/(1+df)))); const norms = tfs.map(tf=>{ let sum=0; tf.forEach((f,w)=>{ const v = f*(idf.get(w)||0); sum += v*v; }); return Math.sqrt(sum)||1e-6; }); return {tfs,idf,norms}; }
 function cosineScore(q, idx){ const qtf=new Map(); q.forEach(w=> qtf.set(w,(qtf.get(w)||0)+1)); let qsum=0; qtf.forEach((f,w)=>{ const v=f*(idx.idf.get(w)||0); qsum+=v*v; }); const qnorm=Math.sqrt(qsum)||1e-6; return S.chunks.map((_,i)=>{ let dot=0; idx.tfs[i].forEach((f,w)=>{ const qq=qtf.get(w); if(qq){ dot += (f*(idx.idf.get(w)||0)) * (qq*(idx.idf.get(w)||0)); } }); return dot/(idx.norms[i]*qnorm); }); }
 function topBookContext(query, k=3){ if(!S.ready) return {snippets:[], joined:''}; const q = tokenize(query); const scores = cosineScore(q, {tfs:S.tfs,idf:S.idf,norms:S.tfidfNorms}); const idxs = scores.map((s,i)=>[s,i]).sort((a,b)=>b[0]-a[0]).slice(0,k).filter(x=>x[0]>0.0001); const snippets = idxs.map(([s,i])=>({score:s, text:S.chunks[i]})); const joined = snippets.map((s,i)=>`[${i+1}] ${s.text}`).join('\n---\n'); return {snippets, joined}; }
-function showSnips(snips){ const panel=document.getElementById('ctxPanel'), box=document.getElementById('ctxSnippets'); box.innerHTML=''; snips.forEach(s=>{ const div=document.createElement('div'); div.className='p-2 rounded bg-white/10 border border-white/15'; const d = detectLang(s.text); div.setAttribute('dir', d==='ar'?'rtl':'ltr'); div.textContent = s.text.slice(0,600) + (s.text.length>600?'…':''); box.appendChild(div); }); panel.classList.toggle('hidden', !snips.length); }
-document.getElementById('indexBtn').onclick = async ()=>{
-  const f = document.getElementById('bookFile').files?.[0]; if(!f){ alert('Choose a file first.'); return; }
-  document.getElementById('bookStatus').textContent='Loading...';
+function showSnips(snips){ E.ctxSnippets.innerHTML=''; snips.forEach(s=>{ const div=document.createElement('div'); div.className='p-2 rounded bg-white/10 border border-white/15'; const d = detectLang(s.text); div.setAttribute('dir', d==='ar'?'rtl':'ltr'); div.textContent = s.text.slice(0,600) + (s.text.length>600?'…':''); E.ctxSnippets.appendChild(div); }); E.ctxPanel.classList.toggle('hidden', !snips.length); }
+E.indexBtn.onclick = async ()=>{
+  const f = E.bookFile.files?.[0]; if(!f){ alert('Choose a file first.'); return; }
+  E.bookStatus.textContent='Loading...';
   try{
     const name=f.name.toLowerCase();
     let text='';
@@ -467,29 +498,28 @@ document.getElementById('indexBtn').onclick = async ()=>{
     else if(name.endsWith('.txt'))  text = await readTXT(f);
     else if(name.endsWith('.docx')) text = await readDOCX(f);
     else if(name.endsWith('.epub')) text = await readEPUB(f);
-    else throw new Error('Unsupported file');
+    else throw new Error('Unsupported');
 
     S.bookName=f.name; S.bookText=text;
-    document.getElementById('bookStatus').textContent='Chunking...';
+    E.bookStatus.textContent='Chunking...';
     S.chunks = chunkify(text, 1200, 160);
-    document.getElementById('bookStatus').textContent=`Indexing ${S.chunks.length} chunks...`;
+    E.bookStatus.textContent=`Indexing ${S.chunks.length} chunks...`;
     const {tfs,idf,norms} = buildIndex(S.chunks); S.tfs=tfs; S.idf=idf; S.tfidfNorms=norms; S.ready=true;
-    document.getElementById('bookStatus').textContent=`Ready: ${S.bookName} (${S.chunks.length} chunks)`;
-  }catch(err){ console.error(err); document.getElementById('bookStatus').textContent='Error'; alert('Could not read this file.'); }
+    E.bookStatus.textContent=`Ready: ${S.bookName} (${S.chunks.length} chunks)`;
+  }catch(err){ console.error(err); E.bookStatus.textContent='Error'; alert('Could not read this file.'); }
 };
 
-/* ==== Q&A submit ==== */
-document.getElementById('qaForm').addEventListener('submit', async (e)=>{
+/* ================= Q&A submit ================= */
+E.form.addEventListener('submit', async (e)=>{
   e.preventDefault();
-  await Tone.start(); sfx('zap');
-  document.getElementById('loader').classList.remove('hidden'); document.getElementById('bubble').classList.add('hidden'); document.getElementById('resetBtn').classList.remove('hidden');
+  E.loader.classList.remove('hidden'); E.bubble.classList.add('hidden'); E.reset.classList.remove('hidden');
 
-  const txt = document.getElementById('userInput').value.trim();
+  const txt = E.input.value.trim();
   const uilang = detectLang(txt);
   let reply='', ctx='';
 
   if(S.mode==='book'){
-    if(!S.ready){ document.getElementById('loader').classList.add('hidden'); alert('Please load and index a book first.'); return; }
+    if(!S.ready){ E.loader.classList.add('hidden'); alert('Please load and index a book first.'); return; }
     const {snippets, joined} = topBookContext(txt, 3);
     showSnips(snippets);
     ctx = joined || '(no context)';
@@ -497,7 +527,7 @@ document.getElementById('qaForm').addEventListener('submit', async (e)=>{
     const apiAns = await callGemini(prompt);
     reply = apiAns || (snippets.length ? (detectLang(snippets[0].text)==='ar' ? `من كتابك:\n\n${snippets[0].text.slice(0,500)}${snippets[0].text.length>500?'…':''}` : `From your book:\n\n${snippets[0].text.slice(0,500)}${snippets[0].text.length>500?'…':''}`) : (uilang==='ar'?'لم أجد ذلك في كتابك.':'I could not find that in your book.'));
   } else {
-    if(!txt){ document.getElementById('loader').classList.add('hidden'); return; }
+    if(!txt){ E.loader.classList.add('hidden'); return; }
     const prompt = buildPrompt(txt);
     const apiAns = await callGemini(prompt);
     reply = apiAns || (uilang==='ar'
@@ -505,12 +535,12 @@ document.getElementById('qaForm').addEventListener('submit', async (e)=>{
       : ["Because sunlight sprinkles like glitter in the air! ✨","It’s the sun and air playing with light — easy! 😄"][Math.floor(Math.random()*2)]);
   }
 
-  document.getElementById('loader').classList.add('hidden');
+  E.loader.classList.add('hidden');
   typeOut(reply);
 });
-document.getElementById('resetBtn').onclick=()=>{ sfx('pop'); document.getElementById('bubble').classList.add('hidden'); document.getElementById('resetBtn').classList.add('hidden'); document.getElementById('userInput').value=''; };
+E.reset.onclick=()=>{ E.bubble.classList.add('hidden'); E.reset.classList.add('hidden'); E.input.value=''; };
 
-/* ==== Drawing board + DoodleNet guessing ==== */
+/* ================= Drawing board + DoodleNet ================= */
 const DC = { ctx:null, drawing:false, lastX:0, lastY:0, rect:null };
 function resizeDrawCanvas(){
   const dpr = Math.max(1, window.devicePixelRatio || 1);
@@ -555,21 +585,29 @@ E.brushSize.oninput = (e)=>{ S.draw.size = Number(e.target.value); };
 document.querySelectorAll('.swatch').forEach(el=>{ el.addEventListener('click', ()=>{ S.draw.color = el.dataset.color; S.draw.erasing=false; setActiveTool(); }); });
 setActiveTool();
 
-/* Load DoodleNet once (first time entering drawing mode) */
+/* Load DoodleNet (with fallbacks) */
 async function loadDoodleNet(){
-  if(S.draw.modelReady || S.draw.modelLoading) return;
-  try{
-    S.draw.modelLoading = true;
-    E.modelStatus.textContent = 'AI: loading...';
-    S.draw.model = await ml5.imageClassifier('DoodleNet');
-    S.draw.modelReady = true;
-    E.modelStatus.textContent = 'AI: ready ✅';
-  }catch(e){
-    console.error(e);
-    E.modelStatus.textContent = 'AI: error';
-  }finally{
-    S.draw.modelLoading = false;
+  if (S.draw.modelReady || S.draw.modelLoading) return;
+  S.draw.modelLoading = true;
+  E.modelStatus.textContent = 'AI: loading...';
+  const CANDIDATES = [
+    'DoodleNet',
+    'https://storage.googleapis.com/learnjs-data/doodlenet/model.json',
+    'https://storage.googleapis.com/learnjs-data/model-builder/doodle/model.json'
+  ];
+  let lastErr=null;
+  for(const src of CANDIDATES){
+    try{
+      await new Promise(r=>setTimeout(r,0));
+      S.draw.model = await ml5.imageClassifier(src);
+      S.draw.modelReady=true; S.draw.modelLoading=false;
+      E.modelStatus.textContent='AI: ready ✅';
+      return;
+    }catch(e){ lastErr=e; console.warn('DoodleNet failed', src, e); }
   }
+  S.draw.modelLoading=false; S.draw.modelReady=false;
+  E.modelStatus.textContent='AI: error';
+  console.error('All sources failed:', lastErr);
 }
 
 /* Guess handler */
@@ -583,10 +621,8 @@ E.toolGuess.onclick = async ()=>{
     const top3 = (results||[]).slice(0,3);
     E.guesses.innerHTML = '';
     if(!top3.length){ E.guesses.textContent = 'Hmm… draw a bit more and try again!'; return; }
-    // Speak top guess
     const best = top3[0];
     speak(`I think it's a ${best.label}!`, 'en');
-    // Render list
     top3.forEach(r=>{
       const row = document.createElement('div');
       row.className = 'flex items-center gap-2';
@@ -601,7 +637,8 @@ E.toolGuess.onclick = async ()=>{
   });
 };
 
-/* ==== Init ==== */
+/* ================= Submit & init ================= */
+document.getElementById('readBtn').onclick=()=>{ const t=E.answer.textContent.trim(); if(!t) return; speak(t, detectLang(t)); };
 newQuiz();
 </script>
 </body>
