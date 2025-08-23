@@ -5,7 +5,7 @@ compatibility_date = "2025-08-23"
 [[d1_databases]]
 binding = "DB"
 database_name = "dad_ai_db"
-database_id = "REPLACE_WITH_YOUR_D1_ID"
+database_id = "8cfebded-2834-4a5e-a4cc-31190c4f1bca"
 
 [vars]
 MAIL_FROM_DOMAIN = "dad-ai.online"
