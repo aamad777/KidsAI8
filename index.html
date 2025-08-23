@@ -25,7 +25,7 @@
       background:
         radial-gradient(1200px 700px at 20% -10%, #ffd54a 0%, transparent 50%),
         radial-gradient(1000px 600px at 90% 0%, #ffc94a 0%, transparent 45%),
-        #201a00;
+        #201a00; /* warm dark */
     }
     .card{ background:var(--card); backdrop-filter:blur(10px); border:1px solid var(--ring); border-radius:18px }
     .btn{ background:#ffd54a; color:#1f2937; font-weight:700 }
@@ -39,6 +39,44 @@
     .cat-label{ position:absolute; top:-18px; left:50%; transform:translateX(-50%); background:#fff; color:#475569; font-size:12px; padding:2px 8px; border-radius:999px; box-shadow:0 6px 18px rgba(0,0,0,.07) }
     canvas{ touch-action:none }
     .tools button{ border-radius:12px; padding:.5rem .8rem }
+
+    /* ==== Flying intro overlay ==== */
+    .intro-overlay{
+      position:fixed; inset:0; z-index:9999; display:grid; place-items:center;
+      background:
+        radial-gradient(1200px 700px at 20% -10%, #ffd54a 0%, transparent 50%),
+        radial-gradient(1000px 600px at 90% 0%, #ffc94a 0%, transparent 45%),
+        #201a00;
+      color:#1a1a1a;
+      transition: opacity .5s ease, visibility .5s ease;
+    }
+    .intro-overlay.hidden{ opacity:0; visibility:hidden; }
+    .stars{ position:absolute; inset:0; overflow:hidden; pointer-events:none; }
+    .star{ position:absolute; width:4px; height:4px; border-radius:50%; background:#fff8;
+           animation: twinkle 2s infinite ease-in-out; }
+    @keyframes twinkle{ 0%,100%{ transform:scale(.6); opacity:.5 } 50%{ transform:scale(1.1); opacity:1 } }
+    .fly-in{ animation: fly 1.6s cubic-bezier(.15,.85,.2,1), bob 1.8s 1.6s infinite ease-in-out }
+    @keyframes fly{
+      0%   { transform: translate(-40vw, -30vh) rotate(-35deg) scale(.7) }
+      60%  { transform: translate(4vw, -6vh)   rotate(6deg)  scale(1.05) }
+      100% { transform: translate(0, 0)        rotate(0)     scale(1) }
+    }
+    @keyframes bob{ 0%,100%{ transform: translateY(0) } 50%{ transform: translateY(-6px) } }
+    .bubble{
+      background:#fff; color:#334155; border-radius:16px; padding:12px 14px; font-weight:700;
+      box-shadow:0 10px 18px rgba(0,0,0,.15); margin-top:10px; display:inline-block;
+    }
+    .bubble:after{
+      content:""; position:absolute; left:50%; transform:translateX(-50%); top:100%;
+      border:10px solid transparent; border-top-color:#fff;
+    }
+    .skip-btn{
+      position:fixed; right:16px; bottom:16px; background:#1f2937; color:#fff;
+      padding:.55rem .9rem; border-radius:999px; font-weight:700; box-shadow:0 8px 20px rgba(0,0,0,.2);
+    }
+    @media (prefers-reduced-motion: reduce){
+      .fly-in, .star{ animation: none !important }
+    }
   </style>
 
   <!-- Tone.js no-op shim (prevents app break if CDN hiccups) -->
@@ -53,6 +91,39 @@
   </script>
 </head>
 <body class="min-h-screen text-white">
+  <!-- ✨ Flying Robot Intro -->
+  <div id="intro" class="intro-overlay">
+    <div class="stars" aria-hidden="true"></div>
+
+    <div class="text-center">
+      <!-- Simple SVG robot with little jets -->
+      <svg class="mx-auto fly-in" width="180" height="180" viewBox="0 0 140 140" aria-label="flying robot">
+        <defs>
+          <linearGradient id="g1" x1="0" x2="1">
+            <stop offset="0" stop-color="#9ae6b4"/><stop offset="1" stop-color="#60a5fa"/>
+          </linearGradient>
+        </defs>
+        <!-- body -->
+        <rect x="30" y="30" rx="14" ry="14" width="80" height="60" fill="url(#g1)" stroke="#1f2937" stroke-width="3"/>
+        <!-- eyes -->
+        <circle cx="55" cy="58" r="8" fill="#fff"/><circle cx="85" cy="58" r="8" fill="#fff"/>
+        <circle id="eyeL" cx="55" cy="58" r="3" fill="#1f2937"/><circle id="eyeR" cx="85" cy="58" r="3" fill="#1f2937"/>
+        <!-- antenna -->
+        <line x1="70" y1="30" x2="70" y2="16" stroke="#1f2937" stroke-width="3"/>
+        <circle cx="70" cy="14" r="4" fill="#ef4444"/>
+        <!-- boosters -->
+        <path d="M40 90 C50 110, 60 110, 70 90" fill="#ffedd5"/>
+        <path d="M70 90 C80 110, 90 110, 100 90" fill="#ffedd5"/>
+      </svg>
+
+      <div class="relative">
+        <div class="bubble" id="introText">Hi kids! Welcome to <b>Dad AI</b> — let’s have fun! 🎉</div>
+      </div>
+    </div>
+
+    <button id="skipIntro" class="skip-btn">Skip ▶</button>
+  </div>
+
   <div class="max-w-6xl mx-auto p-4 sm:p-6">
     <!-- Header -->
     <div class="card p-3 sm:p-4 flex items-center gap-4 justify-between">
@@ -72,18 +143,16 @@
 
     <!-- Main layout -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-      <!-- Left: Tabs + Panels (Ask/Story, Book, Drawing) -->
+      <!-- Left: Ask + Book -->
       <div class="space-y-3">
         <div class="card p-3">
-          <div class="flex flex-wrap gap-2">
+          <div class="flex gap-2">
             <button class="pill" data-mode="ask">Ask</button>
             <button class="pill" data-mode="story">Story ✨</button>
             <button class="pill" data-mode="book">Book Q&A 📚</button>
-            <button class="pill" data-mode="drawing">Drawing 🎨</button>
           </div>
         </div>
 
-        <!-- Ask/Story panel -->
         <div id="askBox" class="card p-3 space-y-2">
           <div class="flex gap-2 items-stretch">
             <input id="question" class="flex-1 rounded-lg px-3 py-3 text-gray-900" placeholder="Why is the sky blue?"/>
@@ -93,21 +162,34 @@
             <button id="askBtn" class="btn px-4 py-2 rounded-lg">Ask!</button>
             <button id="readBtn" class="btn-sec px-4 py-2 rounded-lg">🔊 Read</button>
           </div>
-        </div>
 
-        <!-- Book panel -->
-        <div id="bookBox" class="card p-3 hidden">
-          <div class="flex flex-wrap gap-2 items-center">
-            <input type="file" id="bookFile" accept=".txt,.pdf,.docx,.epub" class="hidden"/>
-            <label for="bookFile" class="btn-sec px-3 py-2 rounded-lg cursor-pointer">📄 Upload book (TXT/PDF/DOCX/EPUB)</label>
-            <button id="buildIdx" class="btn px-3 py-2 rounded-lg">🔎 Build Book Index</button>
-            <span id="bookStatus" class="tag">No book</span>
+          <!-- Book upload & index -->
+          <div id="bookBox" class="mt-2 hidden">
+            <div class="flex flex-wrap gap-2 items-center">
+              <input type="file" id="bookFile" accept=".txt,.pdf,.docx,.epub" class="hidden"/>
+              <label for="bookFile" class="btn-sec px-3 py-2 rounded-lg cursor-pointer">📄 Upload book (TXT/PDF/DOCX/EPUB)</label>
+              <button id="buildIdx" class="btn px-3 py-2 rounded-lg">🔎 Build Book Index</button>
+              <span id="bookStatus" class="tag">No book</span>
+            </div>
+            <div class="text-xs mt-2 opacity-90">Dad AI checks your uploaded book first before using AI.</div>
           </div>
-          <div class="text-xs mt-2 opacity-90">Dad AI checks your uploaded book first before using AI.</div>
+        </div>
+      </div>
+
+      <!-- Right: Answers + Drawing (same column) -->
+      <div class="space-y-3">
+        <div class="card p-3">
+          <div id="answerArea" class="min-h-[220px] max-h-[380px] overflow-auto">
+            <div id="placeholder" class="opacity-70">Your answer shows here…</div>
+            <div id="answerBubble" class="hidden">
+              <div id="answer" class="text-lg leading-relaxed"></div>
+              <div id="snips" class="mt-3 space-y-2"></div>
+            </div>
+          </div>
         </div>
 
-        <!-- Drawing panel (now in its own tab) -->
-        <div id="drawBox" class="card p-3 hidden">
+        <!-- Drawing lives just below the answer -->
+        <div class="card p-3">
           <div class="flex flex-wrap items-center gap-2 tools">
             <button id="pen" class="btn-sec">✏️ Pen</button>
             <button id="eraser" class="btn-sec">🧽 Eraser</button>
@@ -118,25 +200,14 @@
             <span class="ml-2 text-sm">Color</span><input id="color" type="color" value="#000000"/>
             <span class="text-sm">Size</span><input id="size" type="range" min="2" max="40" value="8"/>
           </div>
+
           <div class="flex items-center gap-2 mt-2">
             <input id="whatToDraw" class="rounded-lg px-3 py-2 text-gray-900 flex-1" placeholder="Type an animal (cat, dog, bunny, bird, fish)…"/>
             <button id="drawIt" class="btn px-3 py-2 rounded-lg">🖼️ Draw it</button>
           </div>
+
           <div class="mt-3">
             <canvas id="board" width="880" height="420" class="w-full bg-white rounded-xl"></canvas>
-          </div>
-        </div>
-      </div>
-
-      <!-- Right: Answers -->
-      <div class="space-y-3">
-        <div class="card p-3">
-          <div id="answerArea" class="min-h-[220px] max-h-[700px] overflow-auto">
-            <div id="placeholder" class="opacity-70">Your answer shows here…</div>
-            <div id="answerBubble" class="hidden">
-              <div id="answer" class="text-lg leading-relaxed"></div>
-              <div id="snips" class="mt-3 space-y-2"></div>
-            </div>
           </div>
         </div>
       </div>
@@ -165,7 +236,45 @@
   window.addEventListener('DOMContentLoaded', () => {
     console.log('Dad-AI wired ✅');
 
-    // ====== Refs & State ======
+    /* ---------- Flying intro logic ---------- */
+    // sprinkle stars
+    const starBox = document.querySelector('#intro .stars');
+    for (let i=0;i<40;i++){
+      const s = document.createElement('div');
+      s.className = 'star';
+      s.style.left = Math.random()*100 + 'vw';
+      s.style.top  = Math.random()*100 + 'vh';
+      s.style.animationDelay = (Math.random()*2).toFixed(2) + 's';
+      s.style.opacity = (0.5 + Math.random()*0.5).toFixed(2);
+      starBox.appendChild(s);
+    }
+    // eyes track mouse
+    document.body.addEventListener('pointermove', (e)=>{
+      const svg = document.querySelector('#intro svg');
+      if(!svg) return;
+      const r = svg.getBoundingClientRect(), cx=r.left+r.width/2, cy=r.top+r.height/2;
+      const dx=(e.clientX-cx)/r.width, dy=(e.clientY-cy)/r.height;
+      const mx=Math.max(-1,Math.min(1,dx))*4, my=Math.max(-1,Math.min(1,dy))*4;
+      document.getElementById('eyeL').setAttribute('transform',`translate(${mx},${my})`);
+      document.getElementById('eyeR').setAttribute('transform',`translate(${mx},${my})`);
+    });
+    // speak welcome + bleep
+    try{
+      const u = new SpeechSynthesisUtterance("Hi kids! Welcome to Dad A I. Let's have fun!");
+      u.lang = 'en-US';
+      setTimeout(()=> window.speechSynthesis.speak(u), 350);
+    }catch{}
+    try{
+      const synthIntro = new Tone.Synth().toDestination();
+      Tone.start().then(()=> synthIntro.triggerAttackRelease('C6','8n'));
+    }catch{}
+    // dismiss intro
+    const intro = document.getElementById('intro');
+    const endIntro = ()=>{ intro.classList.add('hidden'); setTimeout(()=> intro.remove(), 520); };
+    document.getElementById('skipIntro').addEventListener('click', endIntro);
+    setTimeout(endIntro, 3500);
+
+    /* ---------- App refs & state ---------- */
     const E = {
       kid: document.getElementById('kid'),
       dadTab: document.getElementById('dadTab'),
@@ -175,19 +284,14 @@
       faqList: document.getElementById('faqList'),
       catFamily: document.getElementById('catFamily'),
 
-      // tabs & panels
       modeBtns: document.querySelectorAll('[data-mode]'),
       askBox: document.getElementById('askBox'),
       bookBox: document.getElementById('bookBox'),
-      drawBox: document.getElementById('drawBox'),
-
-      // ask/story
       q: document.getElementById('question'),
       askBtn: document.getElementById('askBtn'),
       magic: document.getElementById('magic'),
       readBtn: document.getElementById('readBtn'),
 
-      // answers
       answerArea: document.getElementById('answerArea'),
       placeholder: document.getElementById('placeholder'),
       bubble: document.getElementById('answerBubble'),
@@ -207,14 +311,13 @@
       whatToDraw: document.getElementById('whatToDraw'),
       drawIt: document.getElementById('drawIt'),
 
-      // book
       bookFile: document.getElementById('bookFile'),
       buildIdx: document.getElementById('buildIdx'),
       bookStatus: document.getElementById('bookStatus'),
     };
     const S = { mode:'ask', gemKey:GEMINI_KEY, book:{text:'', chunks:[], name:''}, autoVoice:true };
 
-    // ====== Cat Family (tight, distinct) ======
+    /* ---------- Cat family ---------- */
     function catSVG(type){
       const styles = {
         dad:  { base:"#22252f", ear:"#1b1e27", eye:"#fff", pupil:"#2f2f46", acc:"tie"   },
@@ -226,24 +329,15 @@
         <div class="cat-card">
           <div class="cat-label">${type[0].toUpperCase()+type.slice(1)}</div>
           <svg class="cat" viewBox="0 0 120 120" width="86" height="86">
-            <defs>
-              <filter id="sh" x="-20%" y="-20%" width="140%" height="140%">
-                <feDropShadow dx="0" dy="6" stdDeviation="5" flood-color="rgba(0,0,0,.2)"/>
-              </filter>
-            </defs>
-            <!-- Ears -->
+            <defs><filter id="sh" x="-20%" y="-20%" width="140%" height="140%">
+              <feDropShadow dx="0" dy="6" stdDeviation="5" flood-color="rgba(0,0,0,.2)"/></filter></defs>
             <path d="M30 40 L48 18 L52 44 Z" fill="${s.ear}" filter="url(#sh)"/>
             <path d="M90 40 L72 18 L68 44 Z" fill="${s.ear}" filter="url(#sh)"/>
-            <!-- Head -->
             <circle cx="60" cy="62" r="36" fill="${s.base}" filter="url(#sh)"/>
-            <!-- Eyes -->
-            <circle cx="46" cy="56" r="8" fill="${s.eye}"/><circle cx="74" cy="56" r="8" fill="${s.eye}"/>
+            <circle cx="46" cy="56" r="8" fill="#fff"/><circle cx="74" cy="56" r="8" fill="#fff"/>
             <circle class="pL" cx="46" cy="56" r="4" fill="${s.pupil}"/><circle class="pR" cx="74" cy="56" r="4" fill="${s.pupil}"/>
-            <!-- Nose -->
             <polygon points="60,62 56,58 64,58" fill="#ff92b5"/>
-            <!-- Mouth -->
             <path d="M56 68 Q60 71 64 68" stroke="#ff92b5" stroke-width="2" fill="none"/>
-            <!-- Whiskers -->
             <g stroke="rgba(255,255,255,.65)" stroke-width="2">
               <line x1="26" y1="62" x2="44" y2="60"/><line x1="26" y1="66" x2="44" y2="66"/>
               <line x1="76" y1="60" x2="94" y2="62"/><line x1="76" y1="66" x2="94" y2="66"/>
@@ -254,7 +348,7 @@
           </svg>
         </div>`;
     }
-    function buildFamily(){ document.getElementById('catFamily').innerHTML = catSVG('dad') + catSVG('mama') + catSVG('baby'); }
+    function buildFamily(){ E.catFamily.innerHTML = catSVG('dad') + catSVG('mama') + catSVG('baby'); }
     buildFamily();
 
     // Pupils follow cursor
@@ -268,23 +362,21 @@
       });
     });
 
-    // ====== Tabs: Ask / Story / Book / Drawing ======
+    /* ---------- Modes: Ask / Story / Book ---------- */
     E.modeBtns.forEach(b=>b.addEventListener('click', ()=>setMode(b.dataset.mode)));
     function setMode(m){
       S.mode = m;
-      E.askBox.classList.toggle('hidden', !(m==='ask' || m==='story'));
       E.bookBox.classList.toggle('hidden', m!=='book');
-      E.drawBox.classList.toggle('hidden', m!=='drawing');
     }
     setMode('ask');
 
-    // ====== Audio (guarded) ======
+    /* ---------- Audio (guarded) ---------- */
     let audioStarted=false;
     const synth = new Tone.Synth().toDestination();
     const poly  = new Tone.PolySynth(Tone.Synth).toDestination(); poly.volume.value=-8;
     document.body.addEventListener('pointerdown', ()=>{ if(!audioStarted){ Tone.start(); audioStarted=true; } });
 
-    // ====== Ask flow (Book → Dad → AI → Fallback) ======
+    /* ---------- Ask flow (Book → Dad → AI → Fallback) ---------- */
     function normQ(s){ return (s||'').toLowerCase().replace(/\s+/g,' ').trim(); }
     function detectLang(s){ return /[اأ-ي]/.test(s)?'ar':'en'; }
     function showAnswer(text){ E.placeholder.classList.add('hidden'); E.bubble.classList.remove('hidden'); E.answer.textContent = text; }
@@ -371,12 +463,15 @@
       const [okBtn,moreBtn,dadBtn]=bar.querySelectorAll('button');
       okBtn.onclick=()=>bar.remove();
       moreBtn.onclick=async()=>{ const simple=await callGemini(lang==='ar'?`اشرح لطفل صغير ببساطة شديدة:\n\n${a}`:`Explain to a small child in 2–3 very short sentences:\n\n${a}`); if(simple){ E.answer.childNodes[0].textContent=simple; speak(simple,lang);} };
-      dadBtn.onclick=async()=>{ 
+      dadBtn.onclick=async()=>{
         try{
-          const r=await fetch('/api/email',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({kid:E.kid.value||'Kid',question:q,answer:a})});
-          const j=await r.json().catch(()=>({}));
-          if(r.ok && j?.ok){ alert(lang==='ar'?'تم الإرسال إلى بابا':'Sent to Dad!'); }
-          else { alert('Email failed: ' + (j?.error || r.status)); }
+          const r = await fetch('/api/email',{
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ kid:E.kid.value||'Kid', question:q, answer:a })
+          });
+          const j = await r.json().catch(()=>({}));
+          if (r.ok && j?.ok) alert(lang==='ar'?'تم الإرسال إلى بابا':'Sent to Dad!');
+          else alert('Email failed: ' + (j?.error || r.status));
         }catch(e){ alert('Email failed: network'); }
       };
     }
@@ -400,30 +495,31 @@
       S.book.text=txt; S.book.chunks=splitToChunks(txt); E.bookStatus.textContent='Indexed '+S.book.chunks.length+' pieces';
     });
 
-    // Drawing board (only when drawing tab visible)
+    // Drawing board
     const g = E.board.getContext('2d'); let drawing=false, erasing=false;
     g.lineCap='round'; g.lineJoin='round'; g.strokeStyle='#000'; g.lineWidth=8;
     function ppos(ev){ const r=E.board.getBoundingClientRect(); return { x:(ev.clientX-r.left)*(E.board.width/r.width), y:(ev.clientY-r.top)*(E.board.height/r.height) }; }
-    E.board.addEventListener('pointerdown',ev=>{ if(S.mode!=='drawing') return; drawing=true; const {x,y}=ppos(ev); g.beginPath(); g.moveTo(x,y); });
-    E.board.addEventListener('pointermove',ev=>{ if(S.mode!=='drawing'||!drawing) return; const {x,y}=ppos(ev); if(erasing){ g.clearRect(x-10,y-10,20,20);} else { g.lineTo(x,y); g.stroke(); } });
+    E.board.addEventListener('pointerdown',ev=>{ drawing=true; const {x,y}=ppos(ev); g.beginPath(); g.moveTo(x,y); });
+    E.board.addEventListener('pointermove',ev=>{ if(!drawing) return; const {x,y}=ppos(ev); if(erasing){ g.clearRect(x-10,y-10,20,20);} else { g.lineTo(x,y); g.stroke(); } });
     E.board.addEventListener('pointerup',()=>drawing=false);
-    E.pen.addEventListener('click',()=>{ if(S.mode!=='drawing') return; erasing=false; g.strokeStyle=E.color.value; g.lineWidth=+E.size.value; });
-    E.eraser.addEventListener('click',()=>{ if(S.mode!=='drawing') return; erasing=true; g.lineWidth=20; });
-    E.clear.addEventListener('click',()=>{ if(S.mode!=='drawing') return; g.fillStyle='#fff'; g.fillRect(0,0,E.board.width,E.board.height); g.fillStyle=E.color.value; });
-    E.save.addEventListener('click',()=>{ if(S.mode!=='drawing') return; const a=document.createElement('a'); a.href=E.board.toDataURL('image/png'); a.download='drawing.png'; a.click(); });
-    E.color.addEventListener('input',()=>{ if(S.mode!=='drawing') return; g.strokeStyle=E.color.value; });
-    E.size.addEventListener('input',()=>{ if(S.mode!=='drawing') return; g.lineWidth=+E.size.value; });
+    E.pen.addEventListener('click',()=>{ erasing=false; g.strokeStyle=E.color.value; g.lineWidth=+E.size.value; });
+    E.eraser.addEventListener('click',()=>{ erasing=true; g.lineWidth=20; });
+    E.clear.addEventListener('click',()=>{ g.fillStyle='#fff'; g.fillRect(0,0,E.board.width,E.board.height); g.fillStyle=E.color.value; });
+    E.save.addEventListener('click',()=>{ const a=document.createElement('a'); a.href=E.board.toDataURL('image/png'); a.download='drawing.png'; a.click(); });
+    E.color.addEventListener('input',()=> g.strokeStyle=E.color.value);
+    E.size.addEventListener('input',()=> g.lineWidth=+E.size.value);
     g.fillStyle='#fff'; g.fillRect(0,0,E.board.width,E.board.height); g.fillStyle='#000';
 
-    // Guess via ml5 DoodleNet
-    let doodle=null; (async()=>{ try{
+    // Guess via ml5 DoodleNet (best-effort)
+    let doodle=null;
+    (async()=>{ try{
       const s=document.createElement('script'); s.src='https://cdnjs.cloudflare.com/ajax/libs/ml5/0.12.2/ml5.min.js'; document.head.appendChild(s);
       await new Promise(res=>{s.onload=res;});
       doodle=await window.ml5.imageClassifier('DoodleNet');
       E.aiState.textContent='AI: ready ✅';
     }catch(_){ E.aiState.textContent='AI: error'; }})();
+
     E.guess.addEventListener('click',()=>{
-      if(S.mode!=='drawing'){ setMode('drawing'); }
       if(!doodle){ alert('AI not ready'); return; }
       doodle.classify(E.board,(err,res)=>{
         if(err||!res?.[0]){ alert('No guess'); return; }
@@ -433,7 +529,6 @@
 
     // Draw by name (cute)
     E.drawIt.addEventListener('click',()=>{
-      if(S.mode!=='drawing'){ setMode('drawing'); }
       const p=(E.whatToDraw.value||'').toLowerCase(); const W=E.board.width,H=E.board.height;
       g.fillStyle='#fff'; g.fillRect(0,0,W,H);
       if(/cat|قط/.test(p)) cuteCat(g,W,H);
@@ -450,7 +545,7 @@
     function cuteBird(g,W,H){ const cx=W/2,cy=H/2; g.fillStyle='#d0f0ff'; g.beginPath(); g.ellipse(cx,cy,80,60,0,0,Math.PI*2); g.fill(); g.fillStyle='#1f2937'; g.beginPath(); g.arc(cx+20,cy-10,6,0,Math.PI*2); g.fill(); g.fillStyle='#ffcc66'; g.beginPath(); g.moveTo(cx+50,cy); g.lineTo(cx+75,cy+10); g.lineTo(cx+50,cy+20); g.closePath(); g.fill(); }
     function cuteFish(g,W,H){ const cx=W/2,cy=H/2; g.fillStyle='#c8e6ff'; g.beginPath(); g.ellipse(cx,cy,100,50,0,Math.PI*2); g.fill(); g.fillStyle='#a5d8ff'; g.beginPath(); g.moveTo(cx-110,cy); g.lineTo(cx-140,cy-30); g.lineTo(cx-140,cy+30); g.closePath(); g.fill(); g.fillStyle='#1f2937'; g.beginPath(); g.arc(cx+40,cy-5,6,0,Math.PI*2); g.fill(); }
 
-    // Dad dashboard
+    /* ---------- Dad dashboard ---------- */
     E.dadTab.addEventListener('click', ()=>E.dadDlg.showModal());
     E.dadLoad.addEventListener('click', async ()=>{
       const pwd=E.dadPwd.value.trim(); if(!pwd){alert('Password required');return;}
@@ -477,8 +572,6 @@
       });
     });
 
-    // ====== Utility used above ======
-    function splitToChunks(text){ const sents=text.split(/(?<=[\.\!\؟\?])\s+/); const chunks=[]; for(let i=0;i<sents.length;i+=3) chunks.push(sents.slice(i,i+3).join(' ')); return chunks; }
   }); // DOMContentLoaded
   </script>
 </body>
