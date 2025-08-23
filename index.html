@@ -16,8 +16,8 @@
 <script src="https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/epubjs@0.3.93/dist/epub.min.js"></script>
 
-<!-- Drawing AI: TensorFlow.js then ml5.js -->
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.18.0/dist/tf.min.js"></script>
+<!-- Drawing AI: TensorFlow.js v3 (stable for DoodleNet) then ml5.js -->
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.21.0/dist/tf.min.js"></script>
 <script src="https://unpkg.com/ml5@0.12.2/dist/ml5.min.js"></script>
 
 <style>
@@ -71,7 +71,7 @@
   .bar{height:8px;border-radius:6px;background:rgba(255,255,255,.35);overflow:hidden}
   .fill{height:100%;background:#ffd54a}
 
-  /* Cat family positions */
+  /* Cat family */
   #catFamily{display:flex; gap:10px; align-items:center}
   .catWrap{will-change:transform;transition:transform .03s linear;filter:drop-shadow(0 10px 30px rgba(0,0,0,.35))}
 </style>
@@ -85,7 +85,7 @@
     <div class="flex items-center gap-4">
       <!-- Cat family -->
       <div id="catFamily" aria-label="Dad AI cat family">
-        <!-- We’ll clone this template 4x with different sizes/offsets -->
+        <!-- template to be cloned -->
         <div class="catWrap" data-lag="1.0" data-scale="1.0">
           <svg class="cat" width="88" height="88" viewBox="0 0 120 120">
             <path d="M25 35 L45 15 L48 40 Z" fill="#3b3f67"/>
@@ -240,9 +240,9 @@
       </label>
       <label class="text-sm flex items-center gap-2">
         <input id="autoVoice" type="checkbox" class="scale-125"/>
-        Auto‑read answers (Dad AI cat talks)
+        Auto‑read answers (Dad AI talks)
       </label>
-      <p class="text-xs text-gray-600">Key stays in this browser. With no key, Dad AI uses playful offline replies (book search still works locally).</p>
+      <p class="text-xs text-gray-600">Key stays in this browser. Without a key, Dad AI shows playful offline replies; book search runs locally.</p>
     </div>
     <div class="px-5 py-3 border-t border-black/10 flex justify-end gap-2">
       <button class="px-3 py-2 rounded-lg">Close</button>
@@ -254,29 +254,26 @@
 <div aria-live="polite" aria-atomic="true" class="sr-only" id="sr"></div>
 
 <script>
-/* ================= Helpers ================= */
+/* ===== Helpers ===== */
 function detectLang(text){
   const ar = (text.match(/[\u0600-\u06FF]/g)||[]).length;
   const en = (text.match(/[A-Za-z]/g)||[]).length;
   if(ar===0 && en===0) return 'en';
   return ar >= en ? 'ar' : 'en';
 }
-function dirFor(text){ return detectLang(text)==='ar' ? 'rtl' : 'ltr'; }
 const STOP_EN = new Set("a an and are as at be but by for from has have if in into is it its of on or that the to was were will with what when where who why how your you".split(/\s+/));
 const STOP_AR = new Set("في على من إلى عن أن إن كان تكون تكونوا الذي التي الذين التي هذا هذه ذلك هناك هنا هي هو هم هن ثم حيث كما أي اذا إذا أو و يا ما مازال لماذا متى كيف لأن لدى عند بعد قبل بين كل بعض جدًا جدا قد لقد مثلا مثلاً إنّ أنّ إلا إلاّ إلى".split(/\s+/));
 
-/* ================= State & DOM ================= */
+/* ===== State & DOM ===== */
 const S = {
   mode:'question',
   apiKey: localStorage.getItem('g_apiKey') || '',
   autoVoice: localStorage.getItem('g_autoVoice')==='1',
   kid: localStorage.getItem('g_kid') || '',
-  typing: null,
-  lastLang: 'en',
   // book index
   bookName:'', bookText:'', chunks:[], idf:new Map(), tfidfNorms:[], tfs:[], ready:false,
   // drawing
-  draw:{ color:'#000000', size:8, erasing:false, model:null, modelReady:false },
+  draw:{ color:'#000000', size:8, erasing:false, model:null, modelReady:false, modelLoading:false },
   // cats
   followers:[]
 };
@@ -312,7 +309,7 @@ const E = {
   catFamily: document.getElementById('catFamily')
 };
 
-/* ================= Fun SFX ================= */
+/* ===== Fun SFX ===== */
 const synth = new Tone.Synth().toDestination();
 const poly  = new Tone.PolySynth(Tone.Synth).toDestination(); poly.volume.value = -6;
 function sfx(n){ if(n==='boing'){ synth.triggerAttackRelease('C4','8n'); setTimeout(()=>synth.triggerAttackRelease('G3','16n'),100);}
@@ -320,21 +317,23 @@ function sfx(n){ if(n==='boing'){ synth.triggerAttackRelease('C4','8n'); setTime
                  if(n==='pop'){ synth.triggerAttackRelease('A4','32n'); } }
 document.querySelectorAll('[data-sfx]').forEach(b=>b.onclick=()=>sfx(b.dataset.sfx));
 
-/* ================= Cat Family (4 followers) ================= */
+/* ===== Cat family (parent + two kittens) ===== */
 function cloneCats(){
   const template = E.catFamily.querySelector('.catWrap');
   const configs = [
-    {lag:1.0, scale:1.00},
-    {lag:1.8, scale:0.88},
-    {lag:2.6, scale:0.78},
-    {lag:3.4, scale:0.70}
+    {lag:1.0, scale:1.0},   // parent
+    {lag:2.0, scale:0.78},  // kitten 1
+    {lag:2.8, scale:0.70}   // kitten 2
   ];
-  E.catFamily.innerHTML = '';
+  const parent = template.cloneNode(true);
+  const root = E.catFamily;
+  root.innerHTML = '';
   configs.forEach((c,i)=>{
-    const node = template.cloneNode(true);
-    node.dataset.lag = c.lag; node.style.transformOrigin = '50% 50%';
+    const node = (i===0 ? parent : parent.cloneNode(true));
+    node.dataset.lag = c.lag;
+    node.style.transformOrigin = '50% 50%';
     node.style.transform = `scale(${c.scale})`;
-    E.catFamily.appendChild(node);
+    root.appendChild(node);
   });
 }
 cloneCats();
@@ -381,19 +380,7 @@ function catFollowTick(t){
 }
 requestAnimationFrame(catFollowTick);
 
-/* ================= Quiz ================= */
-function newQuiz(){
-  const a=Math.floor(Math.random()*6)+1, b=Math.floor(Math.random()*6)+1;
-  const fruit = ['🍌','🍎','🍓','🍇','🍉'][Math.floor(Math.random()*5)];
-  E.quizBox.innerHTML = `<div class="flex items-center gap-2"><span>How many?</span><span class="text-2xl">${fruit.repeat(a)} + ${fruit.repeat(b)} = ?</span></div>
-  <div class="mt-2 flex gap-2"><input id="ans" class="ring p-2 rounded-lg bg-white/95 text-gray-900 w-24" placeholder="${a+b}"/>
-  <button id="go" class="btn btn-sec px-3 rounded-lg">Check</button></div><div id="msg" class="mt-1 text-sm"></div>`;
-  document.getElementById('go').onclick=()=>{ const v=Number(document.getElementById('ans').value), m=document.getElementById('msg');
-    if(v===a+b){ m.textContent="Correct! 🎉"; sfx('boing'); } else { m.textContent="Try again 🤔"; sfx('pop'); } };
-}
-E.newQuiz.onclick=(e)=>{e.preventDefault(); newQuiz()};
-
-/* ================= Modes & UI ================= */
+/* ===== Modes & UI ===== */
 function setMode(m){
   S.mode=m;
   [...E.modeSwitcher.querySelectorAll('button')].forEach(b=>{
@@ -418,18 +405,15 @@ function setMode(m){
 E.modeSwitcher.addEventListener('click', (e)=> { if(e.target.tagName!=='BUTTON') return; setMode(e.target.dataset.mode); });
 setMode('question');
 
-/* ================= Typing + voice ================= */
+/* ===== Typing + voice ===== */
 function speak(text, lang='en'){ catSpeak(text, lang); }
 function typeOut(text){
-  clearInterval(S.typing);
   const lang = detectLang(text); E.answer.setAttribute('dir', lang==='ar'?'rtl':'ltr');
   E.answer.textContent=''; E.bubble.classList.remove('hidden');
-  let i=0;
-  S.typing=setInterval(()=>{ if(i<text.length){ E.answer.textContent+=text.charAt(i); i++; }
-    else{ clearInterval(S.typing); if(S.autoVoice) speak(E.answer.textContent, lang); } }, 26);
+  let i=0; const t=setInterval(()=>{ if(i<text.length){ E.answer.textContent+=text.charAt(i); i++; } else { clearInterval(t); if(S.autoVoice) speak(E.answer.textContent, lang); } }, 26);
 }
 
-/* ================= Gemini (optional) ================= */
+/* ===== Gemini (optional) ===== */
 async function callGemini(prompt){
   E.loader.classList.remove('hidden'); E.bubble.classList.add('hidden');
   const key=S.apiKey.trim();
@@ -445,7 +429,7 @@ async function callGemini(prompt){
 function buildPrompt(txt, ctx=''){
   const lang = detectLang(txt || ctx);
   if(S.mode==='book'){
-    if(lang==='ar') return `أجب كصديق لطيف لطفل بجمل قصيرة جدًا (٢–٤)، مستخدمًا فقط السياق.\n\nالسياق:\n${ctx}\n\nالسؤال: ${txt}`;
+    if(lang==='ar') return `أجب لطفل بجمل قصيرة جدًا (٢–٤) مستخدمًا فقط السياق.\n\nالسياق:\n${ctx}\n\nالسؤال: ${txt}`;
     return `Answer a child in 2–4 short sentences using ONLY the context.\n\nContext:\n${ctx}\n\nQuestion:\n${txt}`;
   }
   if(lang==='ar'){
@@ -457,16 +441,16 @@ function buildPrompt(txt, ctx=''){
   }
 }
 
-/* ================= STT & Read ================= */
+/* ===== STT & Read ===== */
 let rec=null, listening=false;
 function getRec(){ const R = window.SpeechRecognition||window.webkitSpeechRecognition; if(!R) return null; if(!rec){ rec=new R(); rec.interimResults=false; rec.maxAlternatives=1; } return rec; }
-E.input.addEventListener('input', ()=> S.lastLang = detectLang(E.input.value||'') );
+E.input.addEventListener('input', ()=>{} );
 E.micBtn.onclick=()=>{
   const r=getRec(); if(!r){ alert('Microphone not supported. Try Chrome.'); return; }
-  r.lang = (S.lastLang==='ar') ? 'ar-SA' : 'en-US';
+  r.lang = detectLang(E.input.value||'')==='ar' ? 'ar-SA' : 'en-US';
   if(listening){ r.stop(); return; }
   r.start(); listening=true; E.micIcon.textContent='🛑';
-  r.onresult=(ev)=>{ const t=ev.results[0][0].transcript; E.input.value=t; S.lastLang = detectLang(t); listening=false; E.micIcon.textContent='🎤'; };
+  r.onresult=(ev)=>{ const t=ev.results[0][0].transcript; E.input.value=t; listening=false; E.micIcon.textContent='🎤'; };
   r.onend=()=>{ listening=false; E.micIcon.textContent='🎤'; };
 };
 E.read.onclick=()=>{ const txt=E.answer.textContent.trim(); if(!txt) return; speak(txt, detectLang(txt)); };
@@ -476,18 +460,18 @@ E.saveSettings.onclick=()=>{ S.apiKey=E.apiKeyInput.value.trim(); S.autoVoice=!!
   localStorage.setItem('g_apiKey',S.apiKey); localStorage.setItem('g_autoVoice', S.autoVoice?'1':'0'); settingsDlg.close(); };
 document.getElementById('kidName').value = localStorage.getItem('g_kid')||''; document.getElementById('kidName').onchange=()=>{ S.kid=document.getElementById('kidName').value.trim(); localStorage.setItem('g_kid',S.kid); };
 
-/* ================= Book engine ================= */
+/* ===== Book engine ===== */
 function stripHTML(html){ const d=document.createElement('div'); d.innerHTML=html; return d.textContent||d.innerText||''; }
 async function readTXT(file){ return (await file.text()).replace(/\r\n/g,'\n'); }
 async function readPDF(file){ const buf = await file.arrayBuffer(); const pdf = await pdfjsLib.getDocument({data:buf}).promise; let out=''; for(let p=1;p<=pdf.numPages;p++){ const page=await pdf.getPage(p); const content=await page.getTextContent(); out += content.items.map(it=>it.str).join(' ') + '\n'; } return out; }
 async function readDOCX(file){ const ab = await file.arrayBuffer(); const res = await window.mammoth.convertToHtml({arrayBuffer:ab}); return stripHTML(res.value || ''); }
 async function readEPUB(file){ const ab = await file.arrayBuffer(); const book = ePub(ab); await book.ready; const items = book.spine.spineItems; const texts = []; for(const it of items){ try{ const txt = await it.load(book.load.bind(book)).then(()=> stripHTML(it.document.body.innerText || it.document.body.textContent || '')); texts.push(txt); it.unload(); }catch(e){} } return texts.join('\n\n'); }
-function tokenize(s){ const lang = detectLang(s); const raw = (s.toLowerCase().match(/[a-z\u0600-\u06FF]+/g)) || []; return raw.filter(w => lang==='ar' ? !STOP_AR.has(w) : !STOP_EN.has(w)); }
+function tokenize(s){ const lang = /[\u0600-\u06FF]/.test(s) ? 'ar':'en'; const raw = (s.toLowerCase().match(/[a-z\u0600-\u06FF]+/g)) || []; return raw.filter(w => lang==='ar' ? !STOP_AR.has(w) : !STOP_EN.has(w)); }
 function chunkify(text, size=1200, overlap=160){ const chunks=[]; let i=0; while(i<text.length){ const part=text.slice(i, i+size); chunks.push(part.trim()); i += size - overlap; } return chunks.filter(Boolean); }
 function buildIndex(chunks){ const dfs=new Map(), tfs=[]; chunks.forEach((c)=>{ const toks = tokenize(c); const tf=new Map(); toks.forEach(w=> tf.set(w,(tf.get(w)||0)+1)); tfs.push(tf); const seen=new Set(); tf.forEach((_,w)=>{ if(!seen.has(w)){ dfs.set(w,(dfs.get(w)||0)+1); seen.add(w);} }); }); const N=chunks.length, idf=new Map(); dfs.forEach((df,w)=> idf.set(w, Math.log(1 + N/(1+df)))); const norms = tfs.map(tf=>{ let sum=0; tf.forEach((f,w)=>{ const v = f*(idf.get(w)||0); sum += v*v; }); return Math.sqrt(sum)||1e-6; }); return {tfs,idf,norms}; }
 function cosineScore(q, idx){ const qtf=new Map(); q.forEach(w=> qtf.set(w,(qtf.get(w)||0)+1)); let qsum=0; qtf.forEach((f,w)=>{ const v=f*(idx.idf.get(w)||0); qsum+=v*v; }); const qnorm=Math.sqrt(qsum)||1e-6; return S.chunks.map((_,i)=>{ let dot=0; idx.tfs[i].forEach((f,w)=>{ const qq=qtf.get(w); if(qq){ dot += (f*(idx.idf.get(w)||0)) * (qq*(idx.idf.get(w)||0)); } }); return dot/(idx.norms[i]*qnorm); }); }
 function topBookContext(query, k=3){ if(!S.ready) return {snippets:[], joined:''}; const q = tokenize(query); const scores = cosineScore(q, {tfs:S.tfs,idf:S.idf,norms:S.tfidfNorms}); const idxs = scores.map((s,i)=>[s,i]).sort((a,b)=>b[0]-a[0]).slice(0,k).filter(x=>x[0]>0.0001); const snippets = idxs.map(([s,i])=>({score:s, text:S.chunks[i]})); const joined = snippets.map((s,i)=>`[${i+1}] ${s.text}`).join('\n---\n'); return {snippets, joined}; }
-function showSnips(snips){ E.ctxSnippets.innerHTML=''; snips.forEach(s=>{ const div=document.createElement('div'); div.className='p-2 rounded bg-white/10 border border-white/15'; const d = detectLang(s.text); div.setAttribute('dir', d==='ar'?'rtl':'ltr'); div.textContent = s.text.slice(0,600) + (s.text.length>600?'…':''); E.ctxSnippets.appendChild(div); }); E.ctxPanel.classList.toggle('hidden', !snips.length); }
+function showSnips(snips){ E.ctxSnippets.innerHTML=''; snips.forEach(s=>{ const div=document.createElement('div'); div.className='p-2 rounded bg-white/10 border border-white/15'; div.setAttribute('dir', /[\u0600-\u06FF]/.test(s.text)?'rtl':'ltr'); div.textContent = s.text.slice(0,600) + (s.text.length>600?'…':''); E.ctxSnippets.appendChild(div); }); E.ctxPanel.classList.toggle('hidden', !snips.length); }
 E.indexBtn.onclick = async ()=>{
   const f = E.bookFile.files?.[0]; if(!f){ alert('Choose a file first.'); return; }
   E.bookStatus.textContent='Loading...';
@@ -509,7 +493,7 @@ E.indexBtn.onclick = async ()=>{
   }catch(err){ console.error(err); E.bookStatus.textContent='Error'; alert('Could not read this file.'); }
 };
 
-/* ================= Q&A submit ================= */
+/* ===== Q&A submit ===== */
 E.form.addEventListener('submit', async (e)=>{
   e.preventDefault();
   E.loader.classList.remove('hidden'); E.bubble.classList.add('hidden'); E.reset.classList.remove('hidden');
@@ -540,7 +524,7 @@ E.form.addEventListener('submit', async (e)=>{
 });
 E.reset.onclick=()=>{ E.bubble.classList.add('hidden'); E.reset.classList.add('hidden'); E.input.value=''; };
 
-/* ================= Drawing board + DoodleNet ================= */
+/* ===== Drawing board ===== */
 const DC = { ctx:null, drawing:false, lastX:0, lastY:0, rect:null };
 function resizeDrawCanvas(){
   const dpr = Math.max(1, window.devicePixelRatio || 1);
@@ -610,35 +594,63 @@ async function loadDoodleNet(){
   console.error('All sources failed:', lastErr);
 }
 
-/* Guess handler */
+/* Guess handler (downscale to 280x280 for stability) */
 E.toolGuess.onclick = async ()=>{
   if(!S.draw.modelReady){ await loadDoodleNet(); if(!S.draw.modelReady) return; }
   E.modelStatus.textContent = 'AI: guessing...';
   E.guessBox.classList.remove('hidden');
-  S.draw.model.classify(E.drawCanvas, (err, results)=>{
-    if(err){ console.error(err); E.modelStatus.textContent='AI: error'; return; }
-    E.modelStatus.textContent = 'AI: ready ✅';
-    const top3 = (results||[]).slice(0,3);
-    E.guesses.innerHTML = '';
-    if(!top3.length){ E.guesses.textContent = 'Hmm… draw a bit more and try again!'; return; }
-    const best = top3[0];
-    speak(`I think it's a ${best.label}!`, 'en');
-    top3.forEach(r=>{
-      const row = document.createElement('div');
-      row.className = 'flex items-center gap-2';
-      const label = document.createElement('div'); label.textContent = r.label;
-      const bar = document.createElement('div'); bar.className='bar flex-1';
-      const fill = document.createElement('div'); fill.className='fill'; fill.style.width = Math.round(r.confidence*100)+'%';
-      bar.appendChild(fill);
-      const pct = document.createElement('div'); pct.style.minWidth='36px'; pct.textContent = Math.round(r.confidence*100)+'%';
-      row.appendChild(label); row.appendChild(bar); row.appendChild(pct);
-      E.guesses.appendChild(row);
+
+  const tmp = document.createElement('canvas');
+  tmp.width = 280; tmp.height = 280;
+  const tctx = tmp.getContext('2d');
+  tctx.fillStyle = '#ffffff'; tctx.fillRect(0,0,280,280);
+
+  const src = E.drawCanvas;
+  const sr = src.width/src.height;
+  let dx=0, dy=0, dw=280, dh=280;
+  if(sr > 1){ dh = 280/sr; dy = (280-dh)/2; } else if(sr < 1){ dw = 280*sr; dx = (280-dw)/2; }
+  tctx.drawImage(src, dx, dy, dw, dh);
+
+  try{
+    S.draw.model.classify(tmp, (err, results)=>{
+      if(err){ console.error(err); E.modelStatus.textContent='AI: error'; return; }
+      E.modelStatus.textContent = 'AI: ready ✅';
+      const top3 = (results||[]).slice(0,3);
+      E.guesses.innerHTML = '';
+      if(!top3.length){ E.guesses.textContent = 'Hmm… draw a bit more and try again!'; return; }
+      const best = top3[0];
+      catSpeak(`I think it's a ${best.label}!`, 'en');
+      top3.forEach(r=>{
+        const row = document.createElement('div');
+        row.className = 'flex items-center gap-2';
+        const label = document.createElement('div'); label.textContent = r.label;
+        const bar = document.createElement('div'); bar.className='bar flex-1';
+        const fill = document.createElement('div'); fill.className='fill'; fill.style.width = Math.round(r.confidence*100)+'%';
+        bar.appendChild(fill);
+        const pct = document.createElement('div'); pct.style.minWidth='36px'; pct.textContent = Math.round(r.confidence*100)+'%';
+        row.appendChild(label); row.appendChild(bar); row.appendChild(pct);
+        E.guesses.appendChild(row);
+      });
     });
-  });
+  }catch(e){
+    console.error(e);
+    E.modelStatus.textContent='AI: error';
+  }
 };
 
-/* ================= Submit & init ================= */
-document.getElementById('readBtn').onclick=()=>{ const t=E.answer.textContent.trim(); if(!t) return; speak(t, detectLang(t)); };
+/* ===== Submit & init ===== */
+document.getElementById('readBtn').onclick=()=>{ const t=E.answer.textContent.trim(); if(!t) return; catSpeak(t, detectLang(t)); };
+
+function newQuiz(){
+  const a=Math.floor(Math.random()*6)+1, b=Math.floor(Math.random()*6)+1;
+  const fruit = ['🍌','🍎','🍓','🍇','🍉'][Math.floor(Math.random()*5)];
+  E.quizBox.innerHTML = `<div class="flex items-center gap-2"><span>How many?</span><span class="text-2xl">${fruit.repeat(a)} + ${fruit.repeat(b)} = ?</span></div>
+  <div class="mt-2 flex gap-2"><input id="ans" class="ring p-2 rounded-lg bg-white/95 text-gray-900 w-24" placeholder="${a+b}"/>
+  <button id="go" class="btn btn-sec px-3 rounded-lg">Check</button></div><div id="msg" class="mt-1 text-sm"></div>`;
+  document.getElementById('go').onclick=()=>{ const v=Number(document.getElementById('ans').value), m=document.getElementById('msg');
+    if(v===a+b){ m.textContent="Correct! 🎉"; sfx('boing'); } else { m.textContent="Try again 🤔"; sfx('pop'); } };
+}
+E.newQuiz.onclick=(e)=>{e.preventDefault(); newQuiz()};
 newQuiz();
 </script>
 </body>
