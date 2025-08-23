@@ -5,31 +5,32 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>Dad AI — play • learn • ask</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Tone/14.8.49/Tone.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.min.js"></script>
-  <script>
-    pdfjsLib.GlobalWorkerOptions.workerSrc =
-      "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.worker.min.js";
-  </script>
+  <script>pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdn.jsdelivr.net/npm/pdfjs-dist@4.6.82/build/pdf.worker.min.js";</script>
   <style>
     :root { --card: rgba(255,255,255,.08); --ring: rgba(255,255,255,.18); }
-    .card { background: var(--card); backdrop-filter: blur(10px); border: 1px solid var(--ring); border-radius: 18px; }
-    .btn  { background:#ffd54a; color:#1f2937; font-weight:700; }
-    .btn-sec { background: rgba(255,255,255,.6); font-weight:600; }
-    .tag { background: rgba(0,0,0,.08); padding:.25rem .5rem; border-radius:20px; font-size:.85rem; }
-    .cloud { background: rgba(255,255,255,.95); padding:2px 8px; border-radius:999px; display:inline-block; margin:0 auto 6px; font-size:13px; color:#475569; box-shadow: 0 6px 18px rgba(0,0,0,.07); }
-    .toolbar button{ border-radius:14px; padding:.55rem .9rem; }
-    canvas { touch-action: none; }
-    .pill { background: rgba(255,255,255,.84); color:#334155; padding:6px 10px; border-radius: 999px; font-weight:600; }
+    body{ background: radial-gradient(1200px 700px at 20% -10%, #6d5dd7 0%, transparent 50%), radial-gradient(1000px 600px at 90% 0%, #4a90e2 0%, transparent 45%), #0b1021 }
+    .card{ background:var(--card); backdrop-filter:blur(10px); border:1px solid var(--ring); border-radius:18px }
+    .btn{ background:#ffd54a; color:#1f2937; font-weight:700 }
+    .btn-sec{ background:rgba(255,255,255,.7); color:#334155; font-weight:600 }
+    .tag{ background:rgba(0,0,0,.08); padding:.25rem .5rem; border-radius:20px; font-size:.85rem }
+    .pill{ background:rgba(255,255,255,.84); color:#334155; padding:6px 10px; border-radius:999px; font-weight:600 }
+    .cat-wrap { display:flex; gap:14px; align-items:flex-end }
+    .cat-card{ position:relative; width:86px; height:86px; filter: drop-shadow(0 8px 14px rgba(0,0,0,.18)); }
+    .cat-label{ position:absolute; top:-18px; left:50%; transform:translateX(-50%); background:#fff; color:#475569; font-size:12px; padding:2px 8px; border-radius:999px; box-shadow:0 6px 18px rgba(0,0,0,.07) }
+    canvas{ touch-action:none }
+    .tools button{ border-radius:12px; padding:.5rem .8rem }
   </style>
 </head>
-<body class="min-h-screen text-white" style="background: radial-gradient(1200px 700px at 20% -10%, #6d5dd7 0%, transparent 50%), radial-gradient(1000px 600px at 90% 0%, #4a90e2 0%, transparent 45%), #0b1021">
+<body class="min-h-screen text-white">
   <div class="max-w-6xl mx-auto p-4 sm:p-6">
     <!-- Header -->
     <div class="card p-3 sm:p-4 flex items-center gap-4 justify-between">
       <div class="flex items-center gap-4">
-        <div id="catFamily" class="flex gap-6 items-end"></div>
+        <!-- Cuter cat family, closer together -->
+        <div id="catFamily" class="cat-wrap"></div>
         <div>
           <div class="text-2xl sm:text-3xl font-black leading-tight">Dad <span class="text-yellow-300">AI</span></div>
           <div class="text-sm opacity-90">Ask, draw, guess, read books — English & Arabic</div>
@@ -38,24 +39,21 @@
       <div class="flex items-center gap-2">
         <input id="kid" class="px-3 py-2 rounded-lg text-gray-900" placeholder="Kid name (optional)"/>
         <button id="dadTab" class="btn-sec px-3 py-2 rounded-lg">👨‍👧 Dad Dashboard</button>
-        <button id="settingsBtn" class="btn-sec px-3 py-2 rounded-lg">⚙️ Settings</button>
       </div>
     </div>
 
-    <!-- Main two columns -->
+    <!-- Main layout -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+      <!-- Left: Ask + Book -->
       <div class="space-y-3">
-        <!-- Modes -->
         <div class="card p-3">
           <div class="flex gap-2">
             <button class="pill" data-mode="ask">Ask</button>
             <button class="pill" data-mode="story">Story ✨</button>
-            <button class="pill" data-mode="drawing">Drawing 🎨</button>
             <button class="pill" data-mode="book">Book Q&A 📚</button>
           </div>
         </div>
 
-        <!-- Ask / Story -->
         <div id="askBox" class="card p-3 space-y-2">
           <div class="flex gap-2 items-stretch">
             <input id="question" class="flex-1 rounded-lg px-3 py-3 text-gray-900" placeholder="Why is the sky blue?"/>
@@ -65,83 +63,58 @@
             <button id="askBtn" class="btn px-4 py-2 rounded-lg">Ask!</button>
             <button id="readBtn" class="btn-sec px-4 py-2 rounded-lg">🔊 Read</button>
           </div>
-          <div class="flex gap-2 toolbar">
-            <button id="boing">🍇 Boing</button>
-            <button id="zap">⚡️ Zap</button>
-            <button id="pop">✨ Pop</button>
+
+          <!-- Book upload & index -->
+          <div id="bookBox" class="mt-2 hidden">
+            <div class="flex flex-wrap gap-2 items-center">
+              <input type="file" id="bookFile" accept=".txt,.pdf,.docx,.epub" class="hidden"/>
+              <label for="bookFile" class="btn-sec px-3 py-2 rounded-lg cursor-pointer">📄 Upload book (TXT/PDF/DOCX/EPUB)</label>
+              <button id="buildIdx" class="btn px-3 py-2 rounded-lg">🔎 Build Book Index</button>
+              <span id="bookStatus" class="tag">No book</span>
+            </div>
+            <div class="text-xs mt-2 opacity-90">Dad AI checks your uploaded book first before using AI.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Answers + Drawing (same column) -->
+      <div class="space-y-3">
+        <div class="card p-3">
+          <div id="answerArea" class="min-h-[220px] max-h-[380px] overflow-auto">
+            <div id="placeholder" class="opacity-70">Your answer shows here…</div>
+            <div id="answerBubble" class="hidden">
+              <div id="answer" class="text-lg leading-relaxed"></div>
+              <div id="snips" class="mt-3 space-y-2"></div>
+            </div>
           </div>
         </div>
 
-        <!-- Book Q&A tools -->
-        <div id="bookBox" class="card p-3 hidden">
-          <div class="flex flex-wrap gap-2 items-center">
-            <input type="file" id="bookFile" accept=".txt,.pdf,.docx,.epub" class="hidden"/>
-            <label for="bookFile" class="btn-sec px-3 py-2 rounded-lg cursor-pointer">📄 Upload book (TXT/PDF/DOCX/EPUB)</label>
-            <button id="buildIdx" class="btn px-3 py-2 rounded-lg">🔎 Build Book Index</button>
-            <span id="bookStatus" class="tag">No book</span>
-          </div>
-          <div class="text-xs mt-2 opacity-90">Dad AI first checks your uploaded book for answers before using AI.</div>
-        </div>
-
-        <!-- Drawing tools -->
-        <div id="drawBox" class="card p-3 hidden">
-          <div class="flex flex-wrap gap-2 items-center">
+        <!-- Drawing lives just below the answer -->
+        <div class="card p-3">
+          <div class="flex flex-wrap items-center gap-2 tools">
             <button id="pen" class="btn-sec">✏️ Pen</button>
             <button id="eraser" class="btn-sec">🧽 Eraser</button>
             <button id="clear" class="btn-sec">🧺 Clear</button>
             <button id="save" class="btn-sec">💾 Save PNG</button>
-            <button id="guess" class="btn">🤖 Guess my drawing</button>
+            <button id="guess" class="btn">🤖 Guess</button>
             <span id="aiState" class="tag">AI: loading…</span>
+            <span class="ml-2 text-sm">Color</span><input id="color" type="color" value="#000000"/>
+            <span class="text-sm">Size</span><input id="size" type="range" min="2" max="40" value="8"/>
           </div>
-          <div class="flex items-center gap-2 mt-2">
-            <span class="text-sm">Color</span>
-            <input id="color" type="color" value="#000000"/>
-            <span class="text-sm">Size</span>
-            <input id="size" type="range" min="2" max="40" value="8"/>
-          </div>
+
           <div class="flex items-center gap-2 mt-2">
             <input id="whatToDraw" class="rounded-lg px-3 py-2 text-gray-900 flex-1" placeholder="Type an animal (cat, dog, bunny, bird, fish)…"/>
             <button id="drawIt" class="btn px-3 py-2 rounded-lg">🖼️ Draw it</button>
           </div>
-        </div>
 
-      </div>
-
-      <!-- Answer column -->
-      <div class="card p-3 min-h-[420px]">
-        <div id="answerArea" class="h-[360px] overflow-auto">
-          <div id="placeholder" class="opacity-70">Your answer shows here…</div>
-          <div id="answerBubble" class="hidden">
-            <div id="answer" class="text-lg leading-relaxed"></div>
-            <div id="snips" class="mt-3 space-y-2"></div>
+          <div class="mt-3">
+            <canvas id="board" width="880" height="420" class="w-full bg-white rounded-xl"></canvas>
           </div>
         </div>
       </div>
     </div>
-
-    <!-- Drawing canvas -->
-    <div class="card p-3 mt-4">
-      <canvas id="board" width="900" height="500" class="w-full bg-white rounded-xl"></canvas>
-    </div>
   </div>
 
-  <!-- Settings modal -->
-  <dialog id="settingsDlg" class="card p-0 w-[min(520px,96vw)] text-gray-900">
-    <form method="dialog">
-      <div class="px-5 py-3 border-b font-semibold">Settings</div>
-      <div class="p-5 space-y-3">
-        <label class="text-sm">Gemini API key (optional for smarter answers)
-          <input id="gemKey" class="w-full p-2 mt-1 rounded-lg border" placeholder="AIza…"/>
-        </label>
-        <label class="text-sm">Auto‑read answers (TTS)
-          <input id="autoRead" type="checkbox" class="ml-2 align-middle"/>
-        </label>
-      </div>
-      <div class="px-5 py-3 border-t flex justify-end"><button>Close</button></div>
-    </form>
-  </dialog>
-
-  <!-- Dad dashboard modal -->
   <dialog id="dadDlg" class="card p-0 w-[min(780px,96vw)] text-gray-900">
     <form method="dialog">
       <div class="px-5 py-3 border-b font-semibold">Dad Dashboard</div>
@@ -157,32 +130,34 @@
   </dialog>
 
   <script>
-  // ========== State & Refs ==========
+  // ====== Hard-coded Gemini key (NO settings UI) ======
+  const GEMINI_KEY = "AIzaSyDdG9ozT6-il9J0toab_HFLZPQIau_sb0g"; // <-- replace with your real key
+
+  // ====== Refs & State ======
   const E = {
     kid: document.getElementById('kid'),
-    settingsBtn: document.getElementById('settingsBtn'),
-    settingsDlg: document.getElementById('settingsDlg'),
-    gemKey: document.getElementById('gemKey'),
-    autoRead: document.getElementById('autoRead'),
-    catFamily: document.getElementById('catFamily'),
-    answerArea: document.getElementById('answerArea'),
-    bubble: document.getElementById('answerBubble'),
-    answer: document.getElementById('answer'),
-    snips: document.getElementById('snips'),
-    placeholder: document.getElementById('placeholder'),
-    askBtn: document.getElementById('askBtn'),
-    readBtn: document.getElementById('readBtn'),
-    q: document.getElementById('question'),
-    magic: document.getElementById('magic'),
-    modeBtns: document.querySelectorAll('[data-mode]'),
-    askBox: document.getElementById('askBox'),
-    drawBox: document.getElementById('drawBox'),
-    bookBox: document.getElementById('bookBox'),
     dadTab: document.getElementById('dadTab'),
     dadDlg: document.getElementById('dadDlg'),
     dadPwd: document.getElementById('dadPwd'),
     dadLoad: document.getElementById('dadLoad'),
     faqList: document.getElementById('faqList'),
+    catFamily: document.getElementById('catFamily'),
+
+    modeBtns: document.querySelectorAll('[data-mode]'),
+    askBox: document.getElementById('askBox'),
+    bookBox: document.getElementById('bookBox'),
+    q: document.getElementById('question'),
+    askBtn: document.getElementById('askBtn'),
+    magic: document.getElementById('magic'),
+    readBtn: document.getElementById('readBtn'),
+
+    answerArea: document.getElementById('answerArea'),
+    placeholder: document.getElementById('placeholder'),
+    bubble: document.getElementById('answerBubble'),
+    answer: document.getElementById('answer'),
+    snips: document.getElementById('snips'),
+
+    // drawing
     board: document.getElementById('board'),
     pen: document.getElementById('pen'),
     eraser: document.getElementById('eraser'),
@@ -194,46 +169,60 @@
     size: document.getElementById('size'),
     whatToDraw: document.getElementById('whatToDraw'),
     drawIt: document.getElementById('drawIt'),
+
     bookFile: document.getElementById('bookFile'),
     buildIdx: document.getElementById('buildIdx'),
     bookStatus: document.getElementById('bookStatus'),
   };
-  const S = { mode:'ask', autoVoice:false, gemKey:'', book:{text:'', chunks:[], name:''} };
+  const S = { mode:'ask', gemKey:GEMINI_KEY, book:{text:'', chunks:[], name:''}, autoVoice:true };
 
-  // ========== Cute Cat Family ==========
-  const CAT_SKINS = [
-    { label:"Dad",  base:"#ffd7e0", ear:"#ffb0c1", eye:"#2f2f46", nose:"#ff7aa2", whisk:"#c5b7c4" },
-    { label:"Mama", base:"#dff6ff", ear:"#b7e9ff", eye:"#2f2f46", nose:"#7ac8ff", whisk:"#b7c5d8" },
-    { label:"Baby", base:"#fff6d7", ear:"#ffe4a6", eye:"#2f2f46", nose:"#ffcf66", whisk:"#d8ccb0" },
-  ];
-  function catSVG(s, scale=1){
+  // ====== Cat Family (polished, close together, distinct) ======
+  function catSVG(type){
+    // Elegant silhouettes with accessories
+    const styles = {
+      dad:  { base:"#22252f", ear:"#1b1e27", eye:"#fff", pupil:"#2f2f46", acc:"tie"   },
+      mama: { base:"#f4b6d8", ear:"#f199c7", eye:"#fff", pupil:"#2f2f46", acc:"bow"   },
+      baby: { base:"#ffdca8", ear:"#ffc879", eye:"#fff", pupil:"#2f2f46", acc:"pac"   },
+    };
+    const s = styles[type];
     return `
-    <div class="catWrap text-center" data-lag="${scale*1.2}" style="transform-origin:50% 50%;transform:scale(${scale})">
-      <div class="cloud">${s.label}</div>
-      <svg class="cat" width="92" height="92" viewBox="0 0 120 120" aria-label="cat">
-        <defs><radialGradient id="g${s.label}" cx="50%" cy="40%" r="70%">
-          <stop offset="0%" stop-color="${s.base}"/><stop offset="100%" stop-color="${s.base}"/></radialGradient></defs>
-        <path d="M30 35 L50 18 L52 42 Z" fill="${s.ear}"/><path d="M90 35 L70 18 L68 42 Z" fill="${s.ear}"/>
-        <circle cx="60" cy="58" r="34" fill="url(#g${s.label})"/>
-        <g class="eyes">
-          <circle cx="47" cy="52" r="7" fill="#fff"/><circle cx="73" cy="52" r="7" fill="#fff"/>
-          <circle class="pL" cx="47" cy="52" r="3" fill="${s.eye}"/><circle class="pR" cx="73" cy="52" r="3" fill="${s.eye}"/>
-        </g>
-        <polygon points="60,62 56,58 64,58" fill="${s.nose}"/>
-        <rect class="mouth" x="54" y="68" width="12" height="4" rx="2" fill="${s.nose}" opacity=".6"/>
-        <g stroke="${s.whisk}" stroke-width="2">
-          <line x1="28" y1="64" x2="46" y2="64"/><line x1="28" y1="68" x2="46" y2="66"/>
-          <line x1="74" y1="64" x2="92" y2="64"/><line x1="74" y1="66" x2="92" y2="68"/>
-        </g>
-      </svg>
-    </div>`;
+      <div class="cat-card">
+        <div class="cat-label">${type[0].toUpperCase()+type.slice(1)}</div>
+        <svg class="cat" viewBox="0 0 120 120" width="86" height="86">
+          <defs>
+            <filter id="sh" x="-20%" y="-20%" width="140%" height="140%">
+              <feDropShadow dx="0" dy="6" stdDeviation="5" flood-color="rgba(0,0,0,.2)"/>
+            </filter>
+          </defs>
+          <!-- Ears -->
+          <path d="M30 40 L48 18 L52 44 Z" fill="${s.ear}" filter="url(#sh)"/>
+          <path d="M90 40 L72 18 L68 44 Z" fill="${s.ear}" filter="url(#sh)"/>
+          <!-- Head -->
+          <circle cx="60" cy="62" r="36" fill="${s.base}" filter="url(#sh)"/>
+          <!-- Eyes -->
+          <circle cx="46" cy="56" r="8" fill="${s.eye}"/><circle cx="74" cy="56" r="8" fill="${s.eye}"/>
+          <circle class="pL" cx="46" cy="56" r="4" fill="${s.pupil}"/><circle class="pR" cx="74" cy="56" r="4" fill="${s.pupil}"/>
+          <!-- Nose -->
+          <polygon points="60,62 56,58 64,58" fill="#ff92b5"/>
+          <!-- Mouth -->
+          <path d="M56 68 Q60 71 64 68" stroke="#ff92b5" stroke-width="2" fill="none"/>
+          <!-- Whiskers -->
+          <g stroke="rgba(255,255,255,.65)" stroke-width="2">
+            <line x1="26" y1="62" x2="44" y2="60"/><line x1="26" y1="66" x2="44" y2="66"/>
+            <line x1="76" y1="60" x2="94" y2="62"/><line x1="76" y1="66" x2="94" y2="66"/>
+          </g>
+          ${s.acc==='tie' ? `<polygon points="60,78 52,86 68,86" fill="#5ec1ff"/><rect x="58" y="70" width="4" height="10" fill="#5ec1ff"/>` : ''}
+          ${s.acc==='bow' ? `<circle cx="52" cy="38" r="7" fill="#ff6aa6"/><circle cx="68" cy="38" r="7" fill="#ff6aa6"/><circle cx="60" cy="38" r="5" fill="#ff8ec0"/>` : ''}
+          ${s.acc==='pac' ? `<circle cx="60" cy="74" r="6" fill="#7ad6ff" stroke="#5ab6e5" stroke-width="2"/>` : ''}
+        </svg>
+      </div>`;
   }
   function buildFamily(){
-    E.catFamily.innerHTML = CAT_SKINS.map((s,i)=>catSVG(s,[1,0.9,0.82][i])).join("");
+    E.catFamily.innerHTML = catSVG('dad') + catSVG('mama') + catSVG('baby');
   }
   buildFamily();
 
-  // move pupils with cursor
+  // Pupils follow cursor
   document.body.addEventListener('pointermove',(e)=>{
     document.querySelectorAll('.cat').forEach(svg=>{
       const r = svg.getBoundingClientRect();
@@ -244,54 +233,31 @@
     });
   });
 
-  // ========== Settings ==========
-  E.settingsBtn.onclick = ()=>{
-    E.gemKey.value = localStorage.getItem('g_key')||'';
-    E.autoRead.checked = localStorage.getItem('g_auto')==='1';
-    E.settingsDlg.showModal();
-  };
-  E.settingsDlg.addEventListener('close', ()=>{
-    localStorage.setItem('g_key', E.gemKey.value.trim());
-    localStorage.setItem('g_auto', E.autoRead.checked?'1':'0');
-    S.gemKey = E.gemKey.value.trim(); S.autoVoice = E.autoRead.checked;
-  });
-  S.gemKey = localStorage.getItem('g_key')||'';
-  S.autoVoice = localStorage.getItem('g_auto')==='1';
-
-  // ========== Modes ==========
+  // ====== Modes: Ask / Story / Book (no Drawing tab) ======
   E.modeBtns.forEach(b=>b.onclick=()=>setMode(b.dataset.mode));
   function setMode(m){
     S.mode = m;
-    E.askBox.classList.toggle('hidden', m!=='ask' && m!=='story');
-    E.drawBox.classList.toggle('hidden', m!=='drawing');
     E.bookBox.classList.toggle('hidden', m!=='book');
   }
   setMode('ask');
 
-  // ========== Sounds ==========
-  let started = false;
-  function ensureAudio(){ if(!started){ Tone.start(); started=true; } }
-  const synth = new Tone.Synth().toDestination();
-  const poly = new Tone.PolySynth(Tone.Synth).toDestination(); poly.volume.value=-8;
-  document.body.addEventListener('pointerdown', ensureAudio);
-  boing.onclick = ()=> synth.triggerAttackRelease('C6','8n');
-  zap.onclick   = ()=> synth.triggerAttackRelease('G5','16n');
-  pop.onclick   = ()=> poly.triggerAttackRelease(['C4','E4','A4'],'8n');
+  // ====== Audio blips ======
+  let started=false; const synth=new Tone.Synth().toDestination(); const poly=new Tone.PolySynth(Tone.Synth).toDestination(); poly.volume.value=-8;
+  document.body.addEventListener('pointerdown', ()=>{ if(!started){Tone.start(); started=true;} });
 
-  // ========== Ask flow ==========
+  // ====== Ask flow (Book → Dad → AI → fallback) ======
   function normQ(s){ return (s||'').toLowerCase().replace(/\s+/g,' ').trim(); }
   function detectLang(s){ return /[اأ-ي]/.test(s)?'ar':'en'; }
-  function showAnswer(text){ E.placeholder.classList.add('hidden'); E.bubble.classList.remove('hidden'); E.answer.textContent = text; }
-  function showSnips(snips){
-    E.snips.innerHTML = snips.map(s=>`<div class="bg-white/70 text-gray-800 p-2 rounded">${s}</div>`).join('');
-  }
+  function showAnswer(text){ E.placeholder.classList.add('hidden'); E.bubble.classList.remove('hidden'); E.answer.textContent=text; }
+  function showSnips(snips){ E.snips.innerHTML = snips.map(s=>`<div class="bg-white/70 text-gray-800 p-2 rounded">${s}</div>`).join(''); }
 
   async function callGemini(prompt){
-    const key = S.gemKey; if(!key) return null;
+    const key = S.gemKey && S.gemKey!=="PASTE_YOUR_GEMINI_KEY_HERE" ? S.gemKey : null;
+    if(!key) return null;
     try{
       const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`,{
         method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ contents:[{ parts:[{text: prompt}]}]})
+        body: JSON.stringify({ contents:[{ parts:[{text: prompt}]}] })
       });
       const j = await r.json();
       return j.candidates?.[0]?.content?.parts?.[0]?.text || null;
@@ -303,244 +269,107 @@
       : "Answer like a playful dad talking to a child. Use short, simple sentences.";
     return pre + (ctx? "\nContext:\n"+ctx : "") + "\n\nQuestion: " + q;
   }
-  function offlineAsk(q){
-    const en = "I'm not totally sure yet, but let's explore together!";
-    const ar = "لست متأكدًا تمامًا، لكن دعنا نستكشف معًا!";
-    return detectLang(q)==='ar'? ar : en;
-  }
+  function fallback(q){ return detectLang(q)==='ar' ? "لست متأكدًا تمامًا، لكن لنكتشف معًا!" : "I'm not totally sure yet, but let's explore together!"; }
 
-  // Book vector store (super light)
-  function splitToChunks(text){
-    const sents = text.split(/(?<=[\.\!\؟\?])\s+/);
-    const chunks = [];
-    for(let i=0;i<sents.length;i+=3){
-      chunks.push(sents.slice(i,i+3).join(' '));
-    }
-    return chunks;
-  }
-  function score(q, chunk){
-    const a = normQ(q).split(/\W+/).filter(Boolean);
-    const b = normQ(chunk).split(/\W+/).filter(Boolean);
-    if(!a.length||!b.length) return 0;
-    let hit=0; a.forEach(t=>{ if(b.includes(t)) hit++; });
-    return hit/(Math.sqrt(a.length)*Math.sqrt(b.length));
-  }
-  function topBookChunks(q, k=3){
-    const arr = S.book.chunks.map(ch=>({ch, s: score(q,ch)})).sort((x,y)=>y.s-x.s).slice(0,k);
-    return arr.filter(x=>x.s>0.05).map(x=>x.ch);
-  }
+  // lightweight book chunks
+  function splitToChunks(text){ const sents=text.split(/(?<=[\.\!\؟\?])\s+/); const chunks=[]; for(let i=0;i<sents.length;i+=3) chunks.push(sents.slice(i,i+3).join(' ')); return chunks; }
+  function score(q,ch){ const a=normQ(q).split(/\W+/).filter(Boolean), b=normQ(ch).split(/\W+/).filter(Boolean); if(!a.length||!b.length) return 0; let hit=0; a.forEach(t=>{if(b.includes(t)) hit++;}); return hit/(Math.sqrt(a.length)*Math.sqrt(b.length)); }
+  function topBookChunks(q,k=3){ return S.book.chunks.map(ch=>({ch,s:score(q,ch)})).sort((x,y)=>y.s-x.s).slice(0,k).filter(x=>x.s>0.05).map(x=>x.ch); }
 
   async function searchDadFAQ(q, lang){
-    try{
-      const r = await fetch(`/api/faq/search?lang=${encodeURIComponent(lang)}&q=${encodeURIComponent(normQ(q))}`);
-      const j = await r.json(); return j.hit;
-    }catch{ return null; }
+    try{ const r=await fetch(`/api/faq/search?lang=${encodeURIComponent(lang)}&q=${encodeURIComponent(normQ(q))}`); const j=await r.json(); return j.hit; }catch{ return null; }
   }
 
   async function doAsk(){
     const q = E.q.value.trim(); if(!q) return;
-    ensureAudio();
     synth.triggerAttackRelease('E5','8n');
     const lang = detectLang(q);
     let answer = '';
 
-    // Book first
     if (S.book.chunks.length){
-      const snips = topBookChunks(q, 3);
-      if (snips.length){
-        showSnips(snips);
-        const ctx = snips.join("\n\n");
-        const ai = await callGemini(buildPrompt(q, ctx));
-        answer = ai || snips[0];
-      }
+      const snips = topBookChunks(q,3);
+      if(snips.length){ showSnips(snips); const ctx=snips.join("\n\n"); answer = (await callGemini(buildPrompt(q,ctx))) || snips[0]; }
     }
-
-    // Dad FAQ
-    if (!answer){
-      const hit = await searchDadFAQ(q, lang);
-      if (hit && hit.answer) answer = hit.answer;
-    }
-
-    // AI
-    if (!answer){
-      const ai = await callGemini(buildPrompt(q));
-      if (ai) answer = ai;
-    }
-
-    // Fallback
-    if (!answer) answer = offlineAsk(q);
+    if (!answer){ const hit = await searchDadFAQ(q,lang); if(hit?.answer) answer=hit.answer; }
+    if (!answer){ const ai = await callGemini(buildPrompt(q)); if(ai) answer=ai; }
+    if (!answer) answer=fallback(q);
 
     showAnswer(answer);
-    if (localStorage.getItem('g_auto')==='1') speak(answer, lang);
+    speak(answer, lang);
 
-    // Log
-    fetch('/api/log',{ method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ kid:E.kid.value||'', mode:S.mode, question:q, answer, book:S.book.name||null }) }).catch(()=>{});
-
-    // Help bar
+    fetch('/api/log',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({kid:E.kid.value||'',mode:S.mode,question:q,answer,book:S.book.name||null})}).catch(()=>{});
     showHelpBar(q, answer, lang);
   }
-  askBtn.onclick = doAsk;
-  magic.onclick = doAsk;
-  readBtn.onclick = ()=> speak(E.answer.textContent || E.q.value, detectLang(E.answer.textContent||E.q.value||'en'));
+  E.askBtn.onclick = doAsk; E.magic.onclick = doAsk; E.readBtn.onclick = ()=> speak(E.answer.textContent||E.q.value, detectLang(E.answer.textContent||E.q.value||'en'));
 
-  // Help bar
-  function showHelpBar(q, a, lang){
-    const old = document.getElementById('helpbar'); if (old) old.remove();
-    const bar = document.createElement('div'); bar.id='helpbar';
-    bar.className='mt-3 flex flex-wrap items-center gap-2';
-    bar.innerHTML = `
+  function showHelpBar(q,a,lang){
+    const old=document.getElementById('helpbar'); if(old) old.remove();
+    const bar=document.createElement('div'); bar.id='helpbar'; bar.className='mt-3 flex flex-wrap items-center gap-2';
+    bar.innerHTML=`
       <span class="tag">${lang==='ar'?'هل فهمت؟':'Did that help?'}</span>
       <button class="btn-sec px-3 py-2 rounded-lg">${lang==='ar'?'فهمت ✅':'I got it ✅'}</button>
       <button class="btn-sec px-3 py-2 rounded-lg">${lang==='ar'?'اشرح أكثر 🔁':'Explain more 🔁'}</button>
       <button class="btn-sec px-3 py-2 rounded-lg">📧 ${lang==='ar'?'اسأل بابا':'Ask Dad'}</button>`;
     E.answer.appendChild(bar);
-    const [okBtn, moreBtn, dadBtn] = bar.querySelectorAll('button');
-    okBtn.onclick = ()=> bar.remove();
-    moreBtn.onclick = async ()=>{
-      const simple = await callGemini(
-        lang==='ar' ? `اشرح لطفل صغير ببساطة شديدة:\n\n${a}` : `Explain to a small child in 2–3 short, simple sentences:\n\n${a}`
-      );
-      if (simple){ E.answer.childNodes[0].textContent = simple; if (S.autoVoice) speak(simple, lang); }
-    };
-    dadBtn.onclick = async ()=>{
-      const r = await fetch('/api/email',{ method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ kid:E.kid.value||'Kid', question:q, answer:a })});
-      alert(r.ok? (lang==='ar'?'تم الإرسال إلى بابا':'Sent to Dad!') : 'Email failed');
-    };
+    const [okBtn,moreBtn,dadBtn]=bar.querySelectorAll('button');
+    okBtn.onclick=()=>bar.remove();
+    moreBtn.onclick=async()=>{ const simple=await callGemini(lang==='ar'?`اشرح لطفل صغير ببساطة شديدة:\n\n${a}`:`Explain to a small child in 2–3 very short sentences:\n\n${a}`); if(simple){ E.answer.childNodes[0].textContent=simple; speak(simple,lang);} };
+    dadBtn.onclick=async()=>{ const r=await fetch('/api/email',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({kid:E.kid.value||'Kid',question:q,answer:a})}); alert(r.ok?(lang==='ar'?'تم الإرسال إلى بابا':'Sent to Dad!'):'Email failed'); };
   }
 
-  // ========== TTS ==========
-  function speak(text, lang){
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = (lang==='ar')? 'ar-SA' : 'en-US';
-    window.speechSynthesis.cancel(); window.speechSynthesis.speak(u);
-  }
+  // TTS
+  function speak(text, lang){ const u=new SpeechSynthesisUtterance(text); u.lang=lang==='ar'?'ar-SA':'en-US'; window.speechSynthesis.cancel(); window.speechSynthesis.speak(u); }
 
-  // ========== Book upload & index ==========
-  let uploadedArrayBuffer = null;
-  bookFile.addEventListener('change', async (ev)=>{
-    const f = ev.target.files[0]; if(!f) return;
-    S.book.name = f.name;
-    bookStatus.textContent = 'Loaded: ' + f.name;
-    uploadedArrayBuffer = await f.arrayBuffer();
-  });
-  buildIdx.onclick = async ()=>{
-    if (!uploadedArrayBuffer){ alert('Upload a book first'); return; }
-    const name = (S.book.name||'').toLowerCase();
-    let txt='';
+  // Book upload / index
+  let uploadedArrayBuffer=null;
+  E.bookFile?.addEventListener('change', async (ev)=>{ const f=ev.target.files[0]; if(!f) return; S.book.name=f.name; E.bookStatus.textContent='Loaded: '+f.name; uploadedArrayBuffer=await f.arrayBuffer(); });
+  E.buildIdx?.addEventListener('click', async ()=>{
+    if(!uploadedArrayBuffer){ alert('Upload a book first'); return; }
+    const name=(S.book.name||'').toLowerCase(); let txt='';
     try{
-      if (name.endsWith('.txt')){
-        txt = new TextDecoder().decode(uploadedArrayBuffer);
-      } else if (name.endsWith('.pdf')){
-        const pdf = await pdfjsLib.getDocument({data: uploadedArrayBuffer}).promise;
-        let parts=[]; for(let i=1;i<=pdf.numPages;i++){ const page = await pdf.getPage(i); const t=await page.getTextContent(); parts.push(t.items.map(it=>it.str).join(' ')); }
-        txt = parts.join('\n\n');
-      } else if (name.endsWith('.docx')){
-        const res = await window.mammoth.extractRawText({arrayBuffer: uploadedArrayBuffer}); txt = res.value;
-      } else if (name.endsWith('.epub')){
-        txt = new TextDecoder().decode(uploadedArrayBuffer); // lightweight fallback
-      } else { alert('Unsupported file'); return; }
+      if(name.endsWith('.txt')) txt=new TextDecoder().decode(uploadedArrayBuffer);
+      else if(name.endsWith('.pdf')){ const pdf=await pdfjsLib.getDocument({data:uploadedArrayBuffer}).promise; let parts=[]; for(let i=1;i<=pdf.numPages;i++){ const page=await pdf.getPage(i); const t=await page.getTextContent(); parts.push(t.items.map(it=>it.str).join(' ')); } txt=parts.join('\n\n'); }
+      else if(name.endsWith('.docx')){ const res=await window.mammoth.extractRawText({arrayBuffer:uploadedArrayBuffer}); txt=res.value; }
+      else if(name.endsWith('.epub')){ txt=new TextDecoder().decode(uploadedArrayBuffer); }
+      else { alert('Unsupported file'); return; }
     }catch(e){ alert('Could not read file.'); return; }
-    S.book.text = txt;
-    S.book.chunks = (function splitToChunks(t){
-      const sents = t.split(/(?<=[\.\!\؟\?])\s+/); const chunks=[];
-      for(let i=0;i<sents.length;i+=3) chunks.push(sents.slice(i,i+3).join(' '));
-      return chunks;
-    })(txt);
-    bookStatus.textContent = 'Indexed ' + S.book.chunks.length + ' pieces';
-  };
+    S.book.text=txt; S.book.chunks=splitToChunks(txt); E.bookStatus.textContent='Indexed '+S.book.chunks.length+' pieces';
+  });
 
-  // ========== Drawing board ==========
-  const g = board.getContext('2d');
-  let drawing=false, erasing=false;
+  // Drawing board (same column)
+  const g = E.board.getContext('2d'); let drawing=false, erasing=false;
   g.lineCap='round'; g.lineJoin='round'; g.strokeStyle='#000'; g.lineWidth=8;
-  function ppos(ev){ const r = board.getBoundingClientRect(); const x=(ev.clientX - r.left)*(board.width/r.width); const y=(ev.clientY - r.top)*(board.height/r.height); return {x,y}; }
-  board.addEventListener('pointerdown', ev=>{ drawing=true; const {x,y}=ppos(ev); g.beginPath(); g.moveTo(x,y); });
-  board.addEventListener('pointermove', ev=>{ if(!drawing) return; const {x,y}=ppos(ev); if(erasing){ g.clearRect(x-10,y-10,20,20);} else { g.lineTo(x,y); g.stroke(); } });
-  board.addEventListener('pointerup', ()=> drawing=false);
-  pen.onclick=()=>{ erasing=false; g.strokeStyle=color.value; g.lineWidth=+size.value; };
-  eraser.onclick=()=>{ erasing=true; g.lineWidth=20; };
-  clear.onclick=()=>{ g.fillStyle='#fff'; g.fillRect(0,0,board.width,board.height); g.fillStyle=color.value; };
-  save.onclick=()=>{ const a=document.createElement('a'); a.href=board.toDataURL('image/png'); a.download='drawing.png'; a.click(); };
-  color.oninput=()=> g.strokeStyle=color.value;
-  size.oninput = ()=> g.lineWidth = +size.value;
-  g.fillStyle='#fff'; g.fillRect(0,0,board.width,board.height); g.fillStyle='#000';
+  function ppos(ev){ const r=E.board.getBoundingClientRect(); return { x:(ev.clientX-r.left)*(E.board.width/r.width), y:(ev.clientY-r.top)*(E.board.height/r.height) }; }
+  E.board.addEventListener('pointerdown',ev=>{ drawing=true; const {x,y}=ppos(ev); g.beginPath(); g.moveTo(x,y); });
+  E.board.addEventListener('pointermove',ev=>{ if(!drawing) return; const {x,y}=ppos(ev); if(erasing){ g.clearRect(x-10,y-10,20,20);} else { g.lineTo(x,y); g.stroke(); } });
+  E.board.addEventListener('pointerup',()=>drawing=false);
+  E.pen.onclick=()=>{ erasing=false; g.strokeStyle=E.color.value; g.lineWidth=+E.size.value; };
+  E.eraser.onclick=()=>{ erasing=true; g.lineWidth=20; };
+  E.clear.onclick=()=>{ g.fillStyle='#fff'; g.fillRect(0,0,E.board.width,E.board.height); g.fillStyle=E.color.value; };
+  E.save.onclick=()=>{ const a=document.createElement('a'); a.href=E.board.toDataURL('image/png'); a.download='drawing.png'; a.click(); };
+  E.color.oninput=()=> g.strokeStyle=E.color.value; E.size.oninput=()=> g.lineWidth=+E.size.value;
+  g.fillStyle='#fff'; g.fillRect(0,0,E.board.width,E.board.height); g.fillStyle='#000';
 
-  // Guess via ml5 DoodleNet (best-effort)
-  let doodle=null;
-  (async ()=>{
-    try{
-      const s=document.createElement('script'); s.src='https://cdnjs.cloudflare.com/ajax/libs/ml5/0.12.2/ml5.min.js'; document.head.appendChild(s);
-      await new Promise(res=>{s.onload=res;});
-      doodle = await window.ml5.imageClassifier('DoodleNet');
-      aiState.textContent='AI: ready ✅';
-    }catch(_){ aiState.textContent='AI: error'; }
-  })();
-  guess.onclick = async ()=>{
-    if(!doodle){ alert('AI not ready'); return; }
-    doodle.classify(board, (err, res)=>{
-      if(err || !res?.[0]){ alert('No guess'); return; }
-      showAnswer(`I think it's a **${res[0].label}**! (confidence ${Math.round(res[0].confidence*100)}%)`);
-    });
-  };
+  // Guess via ml5 DoodleNet
+  let doodle=null; (async()=>{ try{ const s=document.createElement('script'); s.src='https://cdnjs.cloudflare.com/ajax/libs/ml5/0.12.2/ml5.min.js'; document.head.appendChild(s); await new Promise(res=>{s.onload=res;}); doodle=await window.ml5.imageClassifier('DoodleNet'); E.aiState.textContent='AI: ready ✅'; }catch(_){ E.aiState.textContent='AI: error'; }})();
+  E.guess.onclick=()=>{ if(!doodle){ alert('AI not ready'); return; } doodle.classify(E.board,(err,res)=>{ if(err||!res?.[0]){ alert('No guess'); return; } showAnswer(`I think it's a **${res[0].label}**! (${Math.round(res[0].confidence*100)}%)`); }); };
 
-  // Draw by name (cute animals)
-  drawIt.onclick = ()=>{
-    const p = (whatToDraw.value||'').toLowerCase();
-    const W=board.width, H=board.height;
-    g.fillStyle='#fff'; g.fillRect(0,0,W,H);
-    if (/cat|قط/.test(p)) cuteCat(g,W,H);
-    else if (/dog|كلب/.test(p)) cuteDog(g,W,H);
-    else if (/bunny|rabbit|أرنب/.test(p)) cuteBunny(g,W,H);
-    else if (/bird|عصفور|طائر/.test(p)) cuteBird(g,W,H);
-    else if (/fish|سمكة/.test(p)) cuteFish(g,W,H);
-    else { g.fillStyle='#222'; g.font='28px system-ui'; g.fillText('Try: cat, dog, bunny, bird, fish', 20, 50); }
-  };
+  // Draw by name (cute)
+  E.drawIt.onclick=()=>{ const p=(E.whatToDraw.value||'').toLowerCase(); const W=E.board.width,H=E.board.height; g.fillStyle='#fff'; g.fillRect(0,0,W,H);
+    if(/cat|قط/.test(p)) cuteCat(g,W,H); else if(/dog|كلب/.test(p)) cuteDog(g,W,H); else if(/bunny|rabbit|أرنب/.test(p)) cuteBunny(g,W,H);
+    else if(/bird|طائر|عصفور/.test(p)) cuteBird(g,W,H); else if(/fish|سمكة/.test(p)) cuteFish(g,W,H);
+    else{ g.fillStyle='#222'; g.font='20px system-ui'; g.fillText('Try: cat, dog, bunny, bird, fish', 20, 40); } };
+  function cuteCat(g,W,H){ const cx=W/2,cy=H/2+10; g.fillStyle='#fff2f7'; g.beginPath(); g.arc(cx,cy,90,0,Math.PI*2); g.fill(); g.fillStyle='#ffd6e7'; g.beginPath(); g.moveTo(cx-60,cy-90); g.lineTo(cx-30,cy-140); g.lineTo(cx-10,cy-90); g.closePath(); g.fill(); g.beginPath(); g.moveTo(cx+60,cy-90); g.lineTo(cx+30,cy-140); g.lineTo(cx+10,cy-90); g.closePath(); g.fill(); g.fillStyle='#1f2937'; g.beginPath(); g.arc(cx-25,cy-10,8,0,Math.PI*2); g.fill(); g.beginPath(); g.arc(cx+25,cy-10,8,0,Math.PI*2); g.fill(); g.fillStyle='#ff9ec2'; g.beginPath(); g.arc(cx,cy+15,8,0,Math.PI*2); g.fill(); }
+  function cuteDog(g,W,H){ const cx=W/2,cy=H/2+10; g.fillStyle='#ffe8cc'; g.beginPath(); g.arc(cx,cy,90,0,Math.PI*2); g.fill(); g.fillStyle='#d9b38c'; g.beginPath(); g.arc(cx-65,cy-50,30,0,Math.PI*2); g.fill(); g.beginPath(); g.arc(cx+65,cy-50,30,0,Math.PI*2); g.fill(); g.fillStyle='#1f2937'; g.beginPath(); g.arc(cx-35,cy-10,10,0,Math.PI*2); g.fill(); g.beginPath(); g.arc(cx+35,cy-10,10,0,Math.PI*2); g.fill(); g.fillStyle='#ffadad'; g.beginPath(); g.arc(cx,cy+20,10,0,Math.PI*2); g.fill(); }
+  function cuteBunny(g,W,H){ const cx=W/2,cy=H/2+20; g.fillStyle='#fff2f7'; g.beginPath(); g.arc(cx,cy,90,0,Math.PI*2); g.fill(); g.fillStyle='#ffd6e7'; g.fillRect(cx-60,cy-120,30,70); g.fillRect(cx+30,cy-120,30,70); g.fillStyle='#1f2937'; g.beginPath(); g.arc(cx-30,cy-10,8,0,Math.PI*2); g.fill(); g.beginPath(); g.arc(cx+30,cy-10,8,0,Math.PI*2); g.fill(); g.fillStyle='#ff9ec2'; g.beginPath(); g.arc(cx,cy+15,8,0,Math.PI*2); g.fill(); }
+  function cuteBird(g,W,H){ const cx=W/2,cy=H/2; g.fillStyle='#d0f0ff'; g.beginPath(); g.ellipse(cx,cy,80,60,0,0,Math.PI*2); g.fill(); g.fillStyle='#1f2937'; g.beginPath(); g.arc(cx+20,cy-10,6,0,Math.PI*2); g.fill(); g.fillStyle='#ffcc66'; g.beginPath(); g.moveTo(cx+50,cy); g.lineTo(cx+75,cy+10); g.lineTo(cx+50,cy+20); g.closePath(); g.fill(); }
+  function cuteFish(g,W,H){ const cx=W/2,cy=H/2; g.fillStyle='#c8e6ff'; g.beginPath(); g.ellipse(cx,cy,100,50,0,Math.PI*2); g.fill(); g.fillStyle='#a5d8ff'; g.beginPath(); g.moveTo(cx-110,cy); g.lineTo(cx-140,cy-30); g.lineTo(cx-140,cy+30); g.closePath(); g.fill(); g.fillStyle='#1f2937'; g.beginPath(); g.arc(cx+40,cy-5,6,0,Math.PI*2); g.fill(); }
 
-  function cuteCat(g,W,H){
-    const cx=W/2, cy=H/2+10;
-    g.fillStyle='#fff2f7'; g.beginPath(); g.arc(cx,cy,90,0,Math.PI*2); g.fill();
-    g.fillStyle='#ffd6e7'; g.beginPath(); g.moveTo(cx-60,cy-90); g.lineTo(cx-30,cy-140); g.lineTo(cx-10,cy-90); g.closePath(); g.fill();
-    g.beginPath(); g.moveTo(cx+60,cy-90); g.lineTo(cx+30,cy-140); g.lineTo(cx+10,cy-90); g.closePath(); g.fill();
-    g.fillStyle='#1f2937'; g.beginPath(); g.arc(cx-25,cy-10,8,0,Math.PI*2); g.fill(); g.beginPath(); g.arc(cx+25,cy-10,8,0,Math.PI*2); g.fill();
-    g.fillStyle='#ff9ec2'; g.beginPath(); g.arc(cx,cy+15,8,0,Math.PI*2); g.fill();
-  }
-  function cuteDog(g,W,H){
-    const cx=W/2, cy=H/2+10;
-    g.fillStyle='#ffe8cc'; g.beginPath(); g.arc(cx,cy,90,0,Math.PI*2); g.fill();
-    g.fillStyle='#d9b38c'; g.beginPath(); g.arc(cx-65,cy-50,30,0,Math.PI*2); g.fill(); g.beginPath(); g.arc(cx+65,cy-50,30,0,Math.PI*2); g.fill();
-    g.fillStyle='#1f2937'; g.beginPath(); g.arc(cx-35,cy-10,10,0,Math.PI*2); g.fill(); g.beginPath(); g.arc(cx+35,cy-10,10,0,Math.PI*2); g.fill();
-    g.fillStyle='#ffadad'; g.beginPath(); g.arc(cx,cy+20,10,0,Math.PI*2); g.fill();
-    g.strokeStyle='#1f2937'; g.lineWidth=3; g.beginPath(); g.moveTo(cx,cy+25); g.quadraticCurveTo(cx,cy+40,cx-20,cy+36); g.moveTo(cx,cy+25); g.quadraticCurveTo(cx,cy+40,cx+20,cy+36); g.stroke();
-  }
-  function cuteBunny(g,W,H){
-    const cx=W/2, cy=H/2+20;
-    g.fillStyle='#fff2f7'; g.beginPath(); g.arc(cx,cy,90,0,Math.PI*2); g.fill();
-    g.fillStyle='#ffd6e7'; g.fillRect(cx-60,cy-120,30,70); g.fillRect(cx+30,cy-120,30,70);
-    g.fillStyle='#1f2937'; g.beginPath(); g.arc(cx-30,cy-10,8,0,Math.PI*2); g.fill(); g.beginPath(); g.arc(cx+30,cy-10,8,0,Math.PI*2); g.fill();
-    g.fillStyle='#ff9ec2'; g.beginPath(); g.arc(cx,cy+15,8,0,Math.PI*2); g.fill();
-  }
-  function cuteBird(g,W,H){
-    const cx=W/2, cy=H/2;
-    g.fillStyle='#d0f0ff'; g.beginPath(); g.ellipse(cx,cy,80,60,0,0,Math.PI*2); g.fill();
-    g.fillStyle='#1f2937'; g.beginPath(); g.arc(cx+20,cy-10,6,0,Math.PI*2); g.fill();
-    g.fillStyle='#ffcc66'; g.beginPath(); g.moveTo(cx+50,cy); g.lineTo(cx+75,cy+10); g.lineTo(cx+50,cy+20); g.closePath(); g.fill();
-  }
-  function cuteFish(g,W,H){
-    const cx=W/2, cy=H/2;
-    g.fillStyle='#c8e6ff'; g.beginPath(); g.ellipse(cx,cy,100,50,0,Math.PI*2); g.fill();
-    g.fillStyle='#a5d8ff'; g.beginPath(); g.moveTo(cx-110,cy); g.lineTo(cx-140,cy-30); g.lineTo(cx-140,cy+30); g.closePath(); g.fill();
-    g.fillStyle='#1f2937'; g.beginPath(); g.arc(cx+40,cy-5,6,0,Math.PI*2); g.fill();
-  }
-
-  // ========== Dad dashboard ==========
-  dadTab.onclick = ()=> dadDlg.showModal();
-  dadLoad.onclick = async ()=>{
-    const pwd = dadPwd.value.trim(); if(!pwd){ alert('Password required'); return; }
-    const auth = 'Basic ' + btoa('dad:'+pwd);
-    const rows = await fetch('/api/admin/list', { headers:{authorization:auth} }).then(r=>r.json()).catch(()=>[]);
-    faqList.innerHTML = rows.slice(0,50).map(r=>`
+  // Dad dashboard
+  E.dadTab.onclick=()=>E.dadDlg.showModal();
+  E.dadLoad.onclick=async()=>{ const pwd=E.dadPwd.value.trim(); if(!pwd){alert('Password required');return;} const auth='Basic '+btoa('dad:'+pwd);
+    const rows=await fetch('/api/admin/list',{headers:{authorization:auth}}).then(r=>r.json()).catch(()=>[]);
+    E.faqList.innerHTML=rows.slice(0,50).map(r=>`
       <div class="p-3 rounded bg-white/80">
         <div class="text-xs text-gray-600">${r.ts} • ${r.mode}</div>
         <div class="font-semibold text-gray-900">${(r.question||'')}</div>
@@ -550,18 +379,10 @@
           <button data-lang="ar" class="save btn-sec px-3 py-1 rounded">Save as AR</button>
         </div>
       </div>`).join('');
-
-    faqList.querySelectorAll('.save').forEach(btn=>{
-      btn.onclick = async (ev)=>{
-        ev.preventDefault();
-        const box = btn.closest('div'); const ta = box.querySelector('textarea');
-        const question = ta.dataset.q; const answer = ta.value; const lang = btn.dataset.lang;
-        const ok = await fetch('/api/faq/upsert', {
-          method:'POST', headers:{'Content-Type':'application/json', authorization:auth},
-          body: JSON.stringify({lang, question, answer})
-        }).then(r=>r.ok);
-        alert(ok ? 'Saved ✅' : 'Failed');
-      };
+    E.faqList.querySelectorAll('.save').forEach(btn=>{
+      btn.onclick=async(ev)=>{ ev.preventDefault(); const ta=btn.closest('div').querySelector('textarea'); const question=ta.dataset.q; const answer=ta.value; const lang=btn.dataset.lang;
+        const ok=await fetch('/api/faq/upsert',{method:'POST',headers:{'Content-Type':'application/json',authorization:auth},body:JSON.stringify({lang,question,answer})}).then(r=>r.ok);
+        alert(ok?'Saved ✅':'Failed'); };
     });
   };
   </script>
