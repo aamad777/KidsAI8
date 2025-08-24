@@ -3,19 +3,38 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Dad AI Chat</title>
+<title>Dad AI — play • learn • ask</title>
+
+<!-- Tailwind -->
 <script src="https://cdn.tailwindcss.com"></script>
+
+<!-- Tone.js (bleeps) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.min.js"></script>
 
+<!-- TensorFlow.js + ml5.js (for DoodleNet guess) -->
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.21.0/dist/tf.min.js"></script>
+<script src="https://unpkg.com/ml5@0.12.2/dist/ml5.min.js"></script>
+
 <style>
-  body{margin:0;font-family:ui-sans-serif,system-ui;background:linear-gradient(135deg,#141b2e,#26356e,#314593);color:#fff;}
-  .chat-bubble{max-width:70%;padding:.6rem 1rem;border-radius:1rem;margin:.5rem 0;}
-  .kid{background:#3b82f6;color:white;align-self:flex-start;}
-  .kid.girl{background:#ec4899;}
-  .dad{background:#facc15;color:black;align-self:flex-end;}
-  #chat{height:60vh;overflow-y:auto;display:flex;flex-direction:column;padding:1rem;}
-  #mascot{width:100px;height:100px;position:fixed;bottom:20px;right:20px;transition:transform 1s ease;}
-  .fly{animation:flyAround 2s ease-in-out;}
+  :root{ --ink:#f8fafc; --ring:rgba(255,255,255,.15); }
+  body{
+    margin:0; color:var(--ink); font-family: ui-sans-serif, system-ui, Segoe UI, Roboto;
+    background: radial-gradient(1100px 600px at 80% -10%, #74a2ff 0%, transparent 45%),
+                radial-gradient(800px 500px at 0% 0%, #5b6bff 0%, transparent 50%),
+                linear-gradient(135deg, #141b2e 0%, #1b2242 45%, #26356e 75%, #314593 100%);
+  }
+  .card{ background:rgba(255,255,255,.08); border:1px solid var(--ring); backdrop-filter:blur(8px); border-radius:20px; }
+  .btn{ background:#ffd54a; color:#0f172a; font-weight:800; border-radius:14px; padding:.65rem 1rem; box-shadow:0 6px 16px rgba(0,0,0,.15) }
+  .btn-sec{ background:#0f172a; color:#fff; font-weight:700; border-radius:14px; padding:.55rem .9rem }
+  .pill{ background:#0f172a; color:#fff; padding:.45rem .8rem; border-radius:999px; font-weight:800 }
+  .tag{ background:#0f172a; color:#fff; padding:.25rem .6rem; border-radius:999px; font-size:.85rem }
+  input[type="text"], input[type="color"], input[type="range"]{ border:1px solid rgba(255,255,255,.25) }
+  canvas{ touch-action:none }
+
+  /* Floating robot */
+  #mascotWrap{ position:fixed; bottom:18px; right:18px; width:150px; height:150px; z-index:1000 }
+  #mascot{ width:150px; height:150px; cursor:pointer; transition:transform .6s ease; }
+  .fly{ animation:flyAround 1.8s ease-in-out; }
   @keyframes flyAround{
     0%{transform:translate(0,0) rotate(0deg);}
     25%{transform:translate(-120px,-80px) rotate(20deg);}
@@ -23,96 +42,563 @@
     75%{transform:translate(-80px,60px) rotate(10deg);}
     100%{transform:translate(0,0) rotate(0deg);}
   }
+
+  /* Robot svg */
+  #mascot rect{ fill:#7dd3fc; stroke:#0f172a; stroke-width:3 }
+
+  /* Cat family (SVG avatars) */
+  .cat-wrap{ display:flex; gap:22px; align-items:flex-end }
+  .cat-card{ position:relative; width:86px; height:86px; cursor:pointer }
+  .cat-label{ position:absolute; top:-18px; left:50%; transform:translateX(-50%);
+              background:#fff; color:#111; font-size:12px; padding:2px 8px; border-radius:999px }
+
+  /* Sparkles */
+  .sparkle{ position:absolute; width:10px; height:10px; border-radius:50%; pointer-events:none;
+            background:radial-gradient(circle,#fff 0%,#ffe08a 55%,transparent 70%);
+            animation:pop .9s ease-out forwards; filter:drop-shadow(0 0 6px #fff) drop-shadow(0 0 10px #ffd54a) }
+  @keyframes pop{ 0%{transform:translate(0,0) scale(.6);opacity:.9}
+                  100%{transform:translate(var(--dx),var(--dy)) scale(0);opacity:0} }
+
+  /* Mini‑sketch */
+  .sketch-frame{ position:relative; border-radius:14px; overflow:hidden; border:2px dashed #5160ff }
+  .sketch-label{ position:absolute; top:8px; left:8px; background:#0f172a; color:#fff;
+                 padding:2px 8px; border-radius:999px; font-weight:800; font-size:.8rem }
+
+  dialog{ border:0; border-radius:16px; }
+
+  /* Chat */
+  .chat-bubble{max-width:78%; padding:.6rem 1rem; border-radius:1rem; margin:.4rem 0;}
+  .kid{background:#3b82f6;color:white;align-self:flex-start;}
+  .kid.girl{background:#ec4899;}
+  .dad{background:#facc15;color:black;align-self:flex-end;}
+  #chat{height:330px;overflow-y:auto;display:flex;flex-direction:column;padding:1rem;}
 </style>
 </head>
-<body class="flex flex-col items-center">
-
-<h1 class="text-3xl font-bold p-4">🐱 Dad AI Chat</h1>
-
-<!-- Intro step -->
-<div id="intro" class="p-4 max-w-md text-black bg-white rounded-xl">
-  <p class="mb-2">Welcome! Let’s set up your chat 🤗</p>
-  <input id="kidName" placeholder="Your name" class="w-full p-2 mb-2 rounded"/>
-  <input id="kidAge" type="number" placeholder="Your age" class="w-full p-2 mb-2 rounded"/>
-  <select id="kidGender" class="w-full p-2 mb-2 rounded">
-    <option value="">Boy or Girl?</option>
-    <option value="boy">Boy</option>
-    <option value="girl">Girl</option>
-  </select>
-  <button id="startBtn" class="bg-yellow-400 px-4 py-2 rounded font-bold">Start Chat</button>
-</div>
-
-<!-- Chat box -->
-<div id="chatUI" class="hidden w-full max-w-2xl flex flex-col flex-grow">
-  <div id="chat" class="card flex-grow"></div>
-  <div class="flex gap-2 p-3">
-    <input id="msg" class="flex-grow rounded px-3 py-2 text-black" placeholder="Type your question..."/>
-    <button id="sendBtn" class="bg-yellow-400 px-4 py-2 rounded font-bold">Send</button>
+<body>
+  <!-- Floating robot -->
+  <div id="mascotWrap" aria-label="Robot">
+    <svg id="mascot" viewBox="0 0 160 160">
+      <rect x="40" y="48" rx="16" ry="16" width="80" height="56"/>
+      <circle cx="62" cy="76" r="8" fill="#fff"/><circle cx="98" cy="76" r="8" fill="#fff"/>
+      <circle id="eyeL2" cx="62" cy="76" r="3" fill="#0f172a"/><circle id="eyeR2" cx="98" cy="76" r="3" fill="#0f172a"/>
+      <line x1="80" y1="48" x2="80" y2="28" stroke="#0f172a" stroke-width="3"/>
+      <circle cx="80" cy="26" r="5" fill="#ef4444"/>
+      <path d="M40 110 h80" stroke="#0f172a" stroke-width="3"/>
+    </svg>
   </div>
-</div>
 
-<!-- Robot -->
-<svg id="mascot" viewBox="0 0 160 160">
-  <rect x="40" y="48" rx="16" ry="16" width="80" height="56" fill="#7dd3fc" stroke="#0f172a" stroke-width="3"/>
-  <circle cx="62" cy="76" r="8" fill="#fff"/><circle cx="98" cy="76" r="8" fill="#fff"/>
-  <circle id="eyeL2" cx="62" cy="76" r="3" fill="#0f172a"/><circle id="eyeR2" cx="98" cy="76" r="3" fill="#0f172a"/>
-  <line x1="80" y1="48" x2="80" y2="28" stroke="#0f172a" stroke-width="3"/>
-  <circle cx="80" cy="26" r="5" fill="#ef4444"/>
-</svg>
+  <!-- Header -->
+  <div class="max-w-6xl mx-auto p-4 sm:p-6">
+    <div class="card p-3 sm:p-4 flex items-center gap-4 justify-between">
+      <div class="flex items-center gap-5">
+        <div id="catFamily" class="cat-wrap"></div>
+        <div>
+          <div class="text-2xl sm:text-3xl font-black">Dad <span class="text-yellow-300">AI</span></div>
+          <div class="text-sm">Ask, draw, guess, read books — English & Arabic</div>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <input id="kidNameTop" class="px-3 py-2 rounded-lg text-black" placeholder="Kid name (optional)"/>
+        <button id="dashBtn" class="btn-sec">👨‍👧 Dad Dashboard</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div class="max-w-6xl mx-auto p-4 sm:p-6">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+      <!-- Left column -->
+      <div class="space-y-4">
+        <!-- Mode switch -->
+        <div class="card p-3 flex gap-3">
+          <button class="pill" data-mode="chat">Chat 💬</button>
+          <button class="pill" data-mode="classic">Classic</button>
+          <button class="pill" data-mode="story">Story ✨</button>
+          <button class="pill" data-mode="book">Book Q&A 📚</button>
+        </div>
+
+        <!-- CHAT PANEL -->
+        <div id="chatPanel" class="card p-4">
+          <div class="mb-2 text-sm opacity-80">Chat with Dad AI</div>
+          <!-- Intro (first time) -->
+          <div id="intro" class="p-4 max-w-md text-black bg-white rounded-xl mb-3 hidden">
+            <p class="mb-2">Welcome! Let’s set up your chat 🤗</p>
+            <input id="kidName" placeholder="Your name" class="w-full p-2 mb-2 rounded"/>
+            <input id="kidAge" type="number" placeholder="Your age" class="w-full p-2 mb-2 rounded"/>
+            <select id="kidGender" class="w-full p-2 mb-2 rounded">
+              <option value="">Boy or Girl?</option>
+              <option value="boy">Boy</option>
+              <option value="girl">Girl</option>
+            </select>
+            <button id="startBtn" class="bg-yellow-400 px-4 py-2 rounded font-bold">Start Chat</button>
+          </div>
+
+          <div id="chat" class="card"></div>
+          <div class="flex gap-2 mt-3">
+            <input id="msg" class="flex-grow rounded px-3 py-2 text-black" placeholder="Type and press Send…"/>
+            <button id="sendBtn" class="btn">Send</button>
+          </div>
+        </div>
+
+        <!-- CLASSIC ASK -->
+        <div id="classicPanel" class="card p-4 hidden">
+          <div class="flex gap-2 items-stretch">
+            <input id="question" class="flex-1 rounded-lg px-3 py-3 text-black"
+                   placeholder="Why is the sky blue? / اكتب سؤالك هنا"/>
+            <button id="searchBtn" class="btn" title="Ping sparkles">🔍</button>
+          </div>
+          <div class="mt-3 flex flex-wrap gap-2">
+            <button id="askBtn" class="btn">Ask!</button>
+            <button id="readBtn" class="btn-sec">🔊 Read</button>
+            <span class="tag">AI: <span id="aiStatus">loading…</span></span>
+            <label class="btn-sec cursor-pointer ml-auto">
+              📄 Upload book (.txt)
+              <input type="file" id="bookFile" accept=".txt" class="hidden"/>
+            </label>
+            <span id="bookStatus" class="tag">No book</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right column -->
+      <div class="space-y-4">
+        <!-- Answer + sketch -->
+        <div id="answerCard" class="card p-4 relative min-h-[220px]">
+          <div class="text-sm opacity-90 mb-1">Your answer shows here…</div>
+          <div id="answer" class="text-lg leading-relaxed">Ask something and I’ll speak! 🗣️</div>
+          <div class="mt-3 flex gap-2">
+            <button id="askDad" class="btn-sec">📧 Ask Dad</button>
+            <button id="clearAns" class="btn-sec">🧹 Clear</button>
+          </div>
+        </div>
+
+        <div class="card p-4">
+          <div class="sketch-frame">
+            <span class="sketch-label">Tiny doodle ✏️</span>
+            <canvas id="miniSketch" width="900" height="260" class="w-full bg-white rounded-md"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Drawing panel -->
+      <div class="lg:col-start-2 card p-3 space-y-3">
+        <div class="flex flex-wrap items-center gap-2">
+          <button id="pen" class="btn-sec">✏️ Pen</button>
+          <button id="eraser" class="btn-sec">🧽 Eraser</button>
+          <button id="clear" class="btn-sec">🧺 Clear</button>
+          <button id="save" class="btn-sec">💾 Save PNG</button>
+          <span class="tag">AI: <span id="drawAI">loading…</span></span>
+          <span>Color</span><input id="color" type="color" value="#000000" class="rounded p-1"/>
+          <span>Size</span><input id="size" type="range" min="2" max="40" value="10" class="w-48"/>
+          <button id="guess" class="btn">🤖 Guess</button>
+        </div>
+        <input id="whatToDraw" class="w-full rounded-lg px-3 py-2 text-black"
+               placeholder="Type: cat, dog, bunny, bird, fish, rocket, sun, cloud, plant"/>
+        <div class="flex justify-between gap-2">
+          <div class="flex items-center gap-2"><span id="guessOut" class="tag">—</span></div>
+          <button id="drawIt" class="btn">🖼️ Draw it</button>
+        </div>
+        <canvas id="board" width="1200" height="420" class="w-full bg-white rounded-xl"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- About -->
+  <dialog id="aboutDlg" class="card p-0 w-[min(680px,96vw)] text-black bg-white">
+    <form method="dialog">
+      <div class="px-5 py-3 border-b font-extrabold">About Dad AI</div>
+      <div class="p-5 space-y-3">
+        <p>👋 Hi! On Dad AI you can ask questions, get sparkly answers with a tiny sketch,
+           draw fun things, and upload text books for Q&A.</p>
+        <p>Click the robot or any cat to open this again.</p>
+      </div>
+      <div class="px-5 py-3 border-t flex justify-end"><button class="btn-sec">Close</button></div>
+    </form>
+  </dialog>
+
+  <!-- Dashboard -->
+  <dialog id="dashDlg" class="card p-0 w-[min(860px,96vw)] text-black bg-white">
+    <form method="dialog">
+      <div class="px-5 py-3 border-b font-extrabold flex items-center justify-between">
+        <span>Dad Dashboard</span>
+        <button class="btn-sec">Close</button>
+      </div>
+      <div class="p-0">
+        <table class="w-full text-sm">
+          <thead class="bg-slate-100">
+            <tr><th class="text-left p-2">Time</th><th class="text-left p-2">Kid</th><th class="text-left p-2">Mode</th><th class="text-left p-2">Question</th><th class="text-left p-2">Answer</th><th class="text-left p-2">Memory</th></tr>
+          </thead>
+          <tbody id="dashRows"></tbody>
+        </table>
+      </div>
+    </form>
+  </dialog>
 
 <script>
-const GEMINI_KEY = "AIzaSyDdG9ozT6-il9J0toab_HFLZPQIau_sb0g"; // put your Gemini key
+/* ===========================
+   CONFIG
+   =========================== */
+const GEMINI_KEY = "AIzaSyDdG9ozT6-il9J0toab_HFLZPQIau_sb0gE";
+const SEND_MAIL_API = "/api/send-email";
+const DAD_EMAIL_FALLBACK = "ahmadkhader65@gmail.com";
 
-let kid={name:"",age:"",gender:"boy"};
+const $ = s => document.querySelector(s);
 
-function addMsg(text,from){
-  const div=document.createElement("div");
-  div.className="chat-bubble "+(from==="kid"?(kid.gender==="girl"?"kid girl":"kid"):"dad");
-  div.textContent=text;
-  document.querySelector("#chat").appendChild(div);
-  document.querySelector("#chat").scrollTop=99999;
+/* ===== kid profile (intro) ===== */
+let kid = JSON.parse(localStorage.getItem('kid-profile')||'null');
+function ensureIntro(){
+  if(!kid){ $('#intro').classList.remove('hidden'); }
+  else { $('#kidNameTop').value = kid.name; }
 }
+$('#startBtn').onclick=()=>{
+  kid = {
+    name: $('#kidName').value || 'friend',
+    age: $('#kidAge').value || '?',
+    gender: $('#kidGender').value || 'boy'
+  };
+  localStorage.setItem('kid-profile', JSON.stringify(kid));
+  $('#intro').classList.add('hidden');
+  addChatKid(`Hi! I'm ${kid.name}, I'm ${kid.age} years old!`);
+  addChatDad(`Hello ${kid.name}! I’m Dad AI. Ask me anything 🤖`);
+};
+ensureIntro();
 
-async function callGemini(q){
-  if(!GEMINI_KEY || GEMINI_KEY==="AIzaSyDdG9ozT6-il9J0toab_HFLZPQIau_sb0g") return null;
-  const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`,{
-    method:"POST",headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({contents:[{parts:[{text:q}]}]})
+/* ===== robot eyes follow, click shows About ===== */
+document.body.addEventListener('pointermove',(e)=>{
+  const svg=$('#mascot'); const r=svg.getBoundingClientRect(), cx=r.left+r.width/2, cy=r.top+r.height/2;
+  const dx=(e.clientX-cx)/r.width, dy=(e.clientY-cy)/r.height;
+  const mx=Math.max(-1,Math.min(1,dx))*4, my=Math.max(-1,Math.min(1,dy))*4;
+  svg.querySelectorAll('#eyeL2,#eyeR2').forEach(p=>p.setAttribute('transform',`translate(${mx},${my})`));
+});
+$('#mascotWrap').onclick=()=>$('#aboutDlg').showModal();
+
+/* ===== Cat avatars ===== */
+function catSVG(label, base, cheeks='#ffd1dc', deco='tie'){
+  const decoSVG = deco==='bow'
+    ? `<circle cx="60" cy="78" r="6" fill="#ff8fb3"/>
+       <polygon points="48,78 60,72 60,84" fill="#ffb3c6"/>
+       <polygon points="72,78 60,72 60,84" fill="#ffb3c6"/>`
+    : `<rect x="56" y="82" width="8" height="14" rx="2" fill="#06b6d4"/>
+       <polygon points="60,92 50,102 70,102" fill="#06b6d4"/>`;
+  return `<div class="cat-card" data-open-about="1">
+    <div class="cat-label">${label}</div>
+    <svg class="cat" viewBox="0 0 120 120" width="86" height="86" role="img">
+      <path d="M32 44 L48 16 L54 46 Z" fill="${base}"/>
+      <path d="M88 44 L72 16 L66 46 Z" fill="${base}"/>
+      <circle cx="60" cy="66" r="36" fill="${base}"/>
+      <circle cx="44" cy="58" r="8" fill="#fff"/><circle cx="76" cy="58" r="8" fill="#fff"/>
+      <circle class="pL" cx="44" cy="58" r="4" fill="#0f172a"/><circle class="pR" cx="76" cy="58" r="4" fill="#0f172a"/>
+      <circle cx="50" cy="72" r="4" fill="${cheeks}"/><circle cx="70" cy="72" r="4" fill="${cheeks}"/>
+      ${decoSVG}
+      <line x1="28" y1="72" x2="46" y2="70" stroke="#0f172a" stroke-width="2"/>
+      <line x1="28" y1="78" x2="46" y2="80" stroke="#0f172a" stroke-width="2"/>
+      <line x1="92" y1="72" x2="74" y2="70" stroke="#0f172a" stroke-width="2"/>
+      <line x1="92" y1="78" x2="74" y2="80" stroke="#0f172a" stroke-width="2"/>
+    </svg>
+  </div>`;
+}
+$('#catFamily').innerHTML =
+  catSVG('Dad','#0f172a','#ffd1dc','tie') +
+  catSVG('Mama','#f4b6d8','#ffc2d4','bow') +
+  catSVG('Baby','#ffdca8','#ffe6ba','tie');
+$('#catFamily').addEventListener('click',e=>{ if(e.target.closest('[data-open-about]')) $('#aboutDlg').showModal(); });
+document.body.addEventListener('pointermove',e=>{
+  document.querySelectorAll('.cat').forEach(svg=>{
+    const r=svg.getBoundingClientRect(), cx=r.left+r.width/2, cy=r.top+r.height/2;
+    const dx=(e.clientX-cx)/r.width, dy=(e.clientY-cy)/r.height;
+    const mx=Math.max(-1,Math.min(1,dx))*4, my=Math.max(-1,Math.min(1,dy))*4;
+    svg.querySelectorAll('.pL,.pR').forEach(p=>p.setAttribute('transform',`translate(${mx},${my})`));
   });
-  const j=await r.json();
-  return j.candidates?.[0]?.content?.parts?.[0]?.text || null;
+});
+
+/* ===== mode switch ===== */
+let mode='chat';
+function setMode(m){
+  mode=m;
+  document.querySelectorAll('[data-mode]').forEach(b=>{
+    const on=b.getAttribute('data-mode')===mode;
+    b.style.background=on?'#fff':'#0f172a'; b.style.color=on?'#000':'#fff';
+  });
+  $('#chatPanel').classList.toggle('hidden', mode!=='chat');
+  $('#classicPanel').classList.toggle('hidden', mode!=='classic');
+}
+document.querySelectorAll('[data-mode]').forEach(b=> b.onclick=()=>setMode(b.getAttribute('data-mode')));
+setMode('chat');
+
+/* ===== sparkles ===== */
+function sparkle(container, n=24){
+  const r=container.getBoundingClientRect();
+  for(let i=0;i<n;i++){
+    const d=document.createElement('div'); d.className='sparkle';
+    d.style.left=(Math.random()*r.width)+'px';
+    d.style.top=(r.height*0.35 + Math.random()*r.height*0.4)+'px';
+    d.style.setProperty('--dx',(Math.random()*160-80)+'px');
+    d.style.setProperty('--dy',(-40-Math.random()*140)+'px');
+    container.appendChild(d); setTimeout(()=>d.remove(),900);
+  }
 }
 
-// Start
-document.querySelector("#startBtn").onclick=()=>{
-  kid.name=document.querySelector("#kidName").value||"friend";
-  kid.age=document.querySelector("#kidAge").value||"?";
-  kid.gender=document.querySelector("#kidGender").value||"boy";
-  document.querySelector("#intro").classList.add("hidden");
-  document.querySelector("#chatUI").classList.remove("hidden");
-  addMsg(`Hi! I'm ${kid.name}, I'm ${kid.age} years old!`, "kid");
-  addMsg(`Hello ${kid.name}! I’m Dad AI. Ask me anything 🤖`, "dad");
+/* ===== Gemini ===== */
+$('#aiStatus').textContent = (!GEMINI_KEY || GEMINI_KEY==="AIzaSyDdG9ozT6-il9J0toab_HFLZPQIau_sb0gE") ? "key missing (demo)" : "ready ✅";
+async function callGemini(text){
+  if(!GEMINI_KEY || GEMINI_KEY==="AIzaSyDdG9ozT6-il9J0toab_HFLZPQIau_sb0gE") return null;
+  try{
+    const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`,{
+      method:"POST", headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({ contents:[{ parts:[{ text }]}] })
+    });
+    const j=await r.json();
+    return j.candidates?.[0]?.content?.parts?.[0]?.text || null;
+  }catch{ return null; }
+}
+
+/* ===== mini sketch (same as before) ===== */
+const sketch=$('#miniSketch'), sg=sketch.getContext('2d');
+function clearSketch(){ sg.fillStyle='#fff'; sg.fillRect(0,0,sketch.width,sketch.height); }
+function drawSunSky(){ clearSketch(); const W=sketch.width,H=sketch.height;
+  const g=sg.createLinearGradient(0,0,0,H); g.addColorStop(0,'#bde0ff'); g.addColorStop(1,'#eaf6ff');
+  let t=0; (function loop(){ t+=0.02; sg.fillStyle=g; sg.fillRect(0,0,W,H);
+    sg.fillStyle='#f0fbdd'; sg.fillRect(0,H*0.82,W,H);
+    const cx=W*0.15, y=H*0.8-Math.sin(t)*80, r=40+Math.sin(t)*4;
+    const rad=sg.createRadialGradient(cx,y,2,cx,y,r); rad.addColorStop(0,'#fff59d'); rad.addColorStop(1,'#ffde59');
+    sg.fillStyle=rad; sg.beginPath(); sg.arc(cx,y,r,0,Math.PI*2); sg.fill(); if(t<Math.PI*2) requestAnimationFrame(loop); })(); }
+function drawRainCloud(){ clearSketch(); const W=sketch.width,H=sketch.height; sg.fillStyle='#e8f2ff'; sg.fillRect(0,0,W,H);
+  const cx=W*0.5, cy=H*0.4; sg.fillStyle='#d7e4f5';
+  [[cx-80,cy],[cx-40,cy-20],[cx,cy],[cx+40,cy-15],[cx+80,cy]].forEach(([x,y],i)=>{ sg.beginPath(); sg.arc(x,y, i%2?40:46,0,Math.PI*2); sg.fill(); });
+  let drops=Array.from({length:30},()=>({x:Math.random()*W, y:H*0.45+Math.random()*40, s:2+Math.random()*3}));
+  (function loop(){ sg.fillStyle='rgba(255,255,255,.2)'; sg.fillRect(0,H*0.45,W,H*0.55);
+    sg.strokeStyle='#7fb6ff'; sg.lineWidth=2; drops.forEach(d=>{ sg.beginPath(); sg.moveTo(d.x,d.y); sg.lineTo(d.x,d.y+d.s*5); sg.stroke(); d.y+=d.s*2; if(d.y>H) d.y=H*0.5; });
+    requestAnimationFrame(loop); })(); }
+function drawRocket(){ clearSketch(); const W=sketch.width,H=sketch.height; let t=0;(function loop(){
+  sg.fillStyle='#0b1020'; sg.fillRect(0,0,W,H); sg.fillStyle='#fff'; for(let i=0;i<30;i++){ sg.fillRect(Math.random()*W,Math.random()*H,1,1); }
+  const x=W*0.15+t*3, y=H*0.75-t*2; sg.save(); sg.translate(x,y); sg.rotate(-Math.PI/7);
+  sg.fillStyle='#c7e9ff'; sg.fillRect(-20,-10,60,20); sg.fillStyle='#ef4444'; sg.beginPath(); sg.moveTo(40,0); sg.lineTo(60,-12); sg.lineTo(60,12); sg.fill();
+  sg.fillStyle='#60a5fa'; sg.beginPath(); sg.arc(-5,0,8,0,Math.PI*2); sg.fill(); sg.fillStyle='#ffd54a'; sg.beginPath(); sg.moveTo(-20,0); sg.lineTo(-35,-6); sg.lineTo(-35,6); sg.fill(); sg.restore();
+  t+=1.2; if(x<W+60) requestAnimationFrame(loop); })(); }
+function drawPlant(){ clearSketch(); const W=sketch.width,H=sketch.height; sg.fillStyle='#e9f7ff'; sg.fillRect(0,0,W,H);
+  sg.fillStyle='#b57c4a'; sg.fillRect(0,H*0.7,W,H*0.3); let t=0;(function loop(){ t+=0.02;
+    const h=Math.min(120,t*120); sg.fillStyle='#e9f7ff'; sg.fillRect(0,0,W,H*0.7); sg.fillStyle='#b57c4a'; sg.fillRect(0,H*0.7,W,H*0.3);
+    sg.strokeStyle='#4caf50'; sg.lineWidth=6; sg.beginPath(); sg.moveTo(W*0.5,H*0.7); sg.lineTo(W*0.5,H*0.7-h); sg.stroke();
+    sg.fillStyle='#7ad957'; sg.beginPath(); sg.ellipse(W*0.5-18,H*0.7-h+20,24,10,-.6,0,2*Math.PI); sg.fill();
+    sg.beginPath(); sg.ellipse(W*0.5+18,H*0.7-h+40,24,10,.6,0,2*Math.PI); sg.fill(); if(h<120) requestAnimationFrame(loop); })(); }
+function drawAnimal(){ clearSketch(); const W=sketch.width,H=sketch.height,cx=W/2,cy=H/2+10;
+  sg.fillStyle='#fff0f6'; sg.beginPath(); sg.arc(cx,cy,90,0,2*Math.PI); sg.fill();
+  sg.fillStyle='#ffd6e7'; sg.beginPath(); sg.moveTo(cx-60,cy-90); sg.lineTo(cx-30,cy-140); sg.lineTo(cx-10,cy-90); sg.fill();
+  sg.beginPath(); sg.moveTo(cx+60,cy-90); sg.lineTo(cx+30,cy-140); sg.lineTo(cx+10,cy-90); sg.fill();
+  sg.fillStyle='#0f172a'; sg.beginPath(); sg.arc(cx-25,cy-10,8,0,2*Math.PI); sg.fill(); sg.beginPath(); sg.arc(cx+25,cy-10,8,0,2*Math.PI); sg.fill();
+  sg.fillStyle='#ff9ec2'; sg.beginPath(); sg.arc(cx,cy+15,8,0,2*Math.PI); sg.fill(); }
+function drawGeneric(){ clearSketch(); sg.fillStyle='#1f2937'; sg.font='24px system-ui';
+  sg.fillText('Let’s explore this together! ✨', 24, 48); }
+function sketchForQuestion(q){
+  q=(q||'').toLowerCase();
+  if (/(sky|blue|sun|سماء|شمس)/.test(q)) return drawSunSky();
+  if (/(rain|cloud|drop|مطر|سحابة)/.test(q)) return drawRainCloud();
+  if (/(rocket|space|star|صاروخ|فضاء)/.test(q)) return drawRocket();
+  if (/(plant|grow|seed|ورقة|نبات)/.test(q)) return drawPlant();
+  if (/(cat|dog|bunny|rabbit|bird|fish|قط|كلب|أرنب|طائر|سمكة)/.test(q)) return drawAnimal();
+  return drawGeneric();
+}
+clearSketch();
+
+/* ===== Logs + Dad memory ===== */
+function saveLog(entry){ const k='dad-ai-log'; const a=JSON.parse(localStorage.getItem(k)||'[]'); a.unshift(entry); localStorage.setItem(k, JSON.stringify(a.slice(0,200))); }
+function loadLog(){ return JSON.parse(localStorage.getItem('dad-ai-log')||'[]'); }
+function getMemory(){ return JSON.parse(localStorage.getItem('dad-ai-memory')||'{}'); }
+function setMemory(mem){ localStorage.setItem('dad-ai-memory', JSON.stringify(mem)); }
+function normalizeQ(q){ return (q||'').trim().toLowerCase().replace(/\s+/g,' '); }
+
+/* ===== CHAT helpers ===== */
+function addChatKid(text){
+  const b=document.createElement('div'); b.className='chat-bubble kid'+(kid?.gender==='girl'?' girl':''); b.textContent=text;
+  $('#chat').appendChild(b); $('#chat').scrollTop=9e9;
+}
+function addChatDad(text){
+  const b=document.createElement('div'); b.className='chat-bubble dad'; b.textContent=text;
+  $('#chat').appendChild(b); $('#chat').scrollTop=9e9;
+}
+function robotReact(){
+  const r=$('#mascot'); r.classList.add('fly'); setTimeout(()=>r.classList.remove('fly'),1800);
+  try{ const s=new Tone.Synth().toDestination(); Tone.start().then(()=> s.triggerAttackRelease('C6','8n')); }catch{}
+}
+
+/* ===== Classic Ask ===== */
+let bookText=""; // .txt support
+$('#bookFile').addEventListener('change', async ev=>{
+  const f=ev.target.files?.[0]; if(!f) return;
+  if(!f.name.endsWith('.txt')){ $('#bookStatus').textContent='Text only (.txt)'; return; }
+  bookText = await f.text(); $('#bookStatus').textContent='Loaded: '+f.name;
+});
+$('#searchBtn').onclick = ()=> sparkle($('#answerCard'));
+
+async function answerFromAI(q){
+  const ar=/[اأ-ي]/.test(q);
+  const style=ar ? "أجب كأب لطيف لطفل صغير. اجعل الجمل قصيرة وبسيطة وممتعة."
+                 : "Answer like a playful dad for a child. Use short, kind, simple sentences.";
+  let context='';
+  if(bookText){
+    const sents=bookText.split(/(?<=[\.\!\?])\s+/).slice(0,2500);
+    const keys=q.toLowerCase().split(/\s+/).filter(w=>w.length>3);
+    const best=sents.map(s=>({s,score:keys.reduce((a,k)=>a+(s.toLowerCase().includes(k)?1:0),0)}))
+                    .sort((a,b)=>b.score-a.score).filter(x=>x.score>0).slice(0,3).map(x=>x.s).join(' ');
+    if(best) context=(ar?"من كتابك: ":"From your book: ")+best+"\n\n";
+  }
+  const prompt=`${style}\n${kid?`Child: ${kid.name}, ${kid.age} y/o`:''}\nQuestion: ${q}\n${context?`Helpful context:\n${context}`:''}`;
+  let ans = await callGemini(prompt);
+  if(!ans) ans = ar ? `سؤال رائع يا ${kid?.name||'صديقي'}! لنفكر فيه معًا.` : `Great question, ${kid?.name||'friend'}! Let’s explore it together.`;
+  return ans;
+}
+
+$('#askBtn').onclick = async ()=>{
+  const q=$('#question').value.trim(); if(!q){ $('#answer').textContent="Please type a question 😊"; return; }
+  $('#answer').textContent="Thinking… 🤔";
+  const mem=getMemory(); const norm=normalizeQ(q);
+  let ans = mem[norm] || await answerFromAI(q);
+  $('#answer').textContent=ans; sparkle($('#answerCard')); robotReact();
+  const lang=/[اأ-ي]/.test(ans)?'ar':'en'; try{ const t=new SpeechSynthesisUtterance(ans); t.lang=(lang==='ar'?'ar-SA':'en-US'); speechSynthesis.cancel(); speechSynthesis.speak(t);}catch{}
+  sketchForQuestion(q);
+  saveLog({t:new Date().toLocaleString(), kid:kid?.name||'', mode:'classic', q, ans});
 };
 
-document.querySelector("#sendBtn").onclick=async()=>{
-  const q=document.querySelector("#msg").value.trim();
-  if(!q) return;
-  addMsg(q,"kid");
-  document.querySelector("#msg").value="";
-  // Robot fly
-  const robot=document.querySelector("#mascot");
-  robot.classList.add("fly");
-  setTimeout(()=>robot.classList.remove("fly"),2000);
+$('#readBtn').onclick = ()=> { const a=$('#answer').textContent; const lang=/[اأ-ي]/.test(a)?'ar':'en'; try{ const u=new SpeechSynthesisUtterance(a); u.lang=(lang==='ar'?'ar-SA':'en-US'); speechSynthesis.cancel(); speechSynthesis.speak(u);}catch{} };
+$('#clearAns').onclick = ()=> { $('#answer').textContent=''; clearSketch(); };
 
-  // Compliment
-  const compliments=["Great question!","Nice thinking!","Wow, clever!","Good job!"];
-  addMsg(compliments[Math.floor(Math.random()*compliments.length)],"dad");
-
-  // AI Answer
-  let ans=await callGemini(`Answer simply for a ${kid.age} year old ${kid.gender}. Question: ${q}`);
-  if(!ans) ans=`Hmm, I think about it: ${q} is very interesting!`;
-  addMsg(ans,"dad");
+/* ===== Ask Dad — Worker send ===== */
+$('#askDad').onclick = async ()=>{
+  const payload = {
+    to: DAD_EMAIL_FALLBACK,
+    subject: "Dad AI — kid needs help",
+    text: `Kid: ${kid?.name||''} (${kid?.age||''})\nMode: ${mode}\nQuestion: ${$('#question').value || $('#msg').value}\nAnswer: ${$('#answer').textContent}`
+  };
+  try{
+    const r=await fetch(SEND_MAIL_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    if(!r.ok) throw new Error('send failed');
+    alert('Sent to Dad! ✅');
+  }catch(e){
+    const subj=encodeURIComponent(payload.subject), body=encodeURIComponent(payload.text);
+    location.href=`mailto:${payload.to}?subject=${subj}&body=${body}`;
+  }
 };
+
+/* ===== Dashboard ===== */
+$('#dashBtn').onclick=()=>{
+  const rows = loadLog().map(r=>`<tr>
+    <td class="p-2">${r.t||''}</td>
+    <td class="p-2">${r.kid||''}</td>
+    <td class="p-2">${r.mode||''}</td>
+    <td class="p-2">${(r.q||'').replace(/</g,'&lt;')}</td>
+    <td class="p-2">${(r.ans||'').replace(/</g,'&lt;')}</td>
+    <td class="p-2"><button data-q="${encodeURIComponent(r.q||'')}" data-a="${encodeURIComponent(r.ans||'')}" class="px-2 py-1 bg-yellow-300 rounded text-xs">Save</button></td>
+  </tr>`).join('') || `<tr><td class="p-2" colspan="6">No data yet</td></tr>`;
+  $('#dashRows').innerHTML=rows;
+  $('#dashRows').onclick=(e)=>{
+    const b=e.target.closest('button'); if(!b) return;
+    const q=decodeURIComponent(b.getAttribute('data-q')); const a=decodeURIComponent(b.getAttribute('data-a'));
+    const mem=getMemory(); mem[normalizeQ(q)] = a; setMemory(mem); alert('Saved to memory ✅');
+  };
+  $('#dashDlg').showModal();
+};
+
+/* ===== Drawing Pad + Guess ===== */
+const board=$('#board'), g=board.getContext('2d');
+g.fillStyle='#fff'; g.fillRect(0,0,board.width,board.height);
+g.lineCap='round'; g.lineJoin='round'; g.strokeStyle='#000'; g.lineWidth=10;
+let drawing=false, erasing=false;
+function p(ev){ const r=board.getBoundingClientRect(); return { x:(ev.clientX-r.left)*(board.width/r.width), y:(ev.clientY-r.top)*(board.height/r.height) }; }
+board.addEventListener('pointerdown',ev=>{ drawing=true; const m=p(ev); g.beginPath(); g.moveTo(m.x,m.y); });
+board.addEventListener('pointermove',ev=>{ if(!drawing) return; const m=p(ev); if(erasing){ g.clearRect(m.x-12,m.y-12,24,24);} else { g.lineTo(m.x,m.y); g.stroke(); } });
+board.addEventListener('pointerup',()=> drawing=false);
+$('#pen').onclick=()=>{ erasing=false; g.strokeStyle=$('#color').value; g.lineWidth=+$('#size').value; };
+$('#eraser').onclick=()=>{ erasing=true; g.lineWidth=24; };
+$('#clear').onclick=()=>{ g.fillStyle='#fff'; g.fillRect(0,0,board.width,board.height); g.fillStyle=$('#color').value; };
+$('#save').onclick=()=>{ const a=document.createElement('a'); a.download='drawing.png'; a.href=board.toDataURL('image/png'); a.click(); };
+$('#color').oninput=()=> g.strokeStyle=$('#color').value;
+$('#size').oninput=()=> g.lineWidth=+$('#size').value;
+
+let classifier=null;
+ml5.imageClassifier('DoodleNet').then(c=>{ classifier=c; $('#drawAI').textContent='ready ✅'; })
+.catch(()=> $('#drawAI').textContent='error');
+$('#guess').onclick=()=>{
+  if(!classifier){ $('#guessOut').textContent='AI not ready'; return; }
+  const tmp=document.createElement('canvas'); tmp.width=256; tmp.height=256;
+  tmp.getContext('2d').drawImage(board,0,0,256,256);
+  classifier.classify(tmp,(err,res)=>{
+    if(err){ $('#guessOut').textContent='error'; return; }
+    $('#guessOut').textContent = res.slice(0,3).map(r=>`${r.label} (${(r.confidence*100|0)}%)`).join(' • ');
+  });
+};
+
+$('#drawIt').onclick=()=>{
+  const txt=($('#whatToDraw').value||'').toLowerCase();
+  const W=board.width,H=board.height; g.fillStyle='#fff'; g.fillRect(0,0,W,H);
+  if(/cat|قط/.test(txt)) drawCat(); else if(/dog|كلب/.test(txt)) drawDog();
+  else if(/bunny|rabbit|أرنب/.test(txt)) drawBunny(); else if(/bird|طائر/.test(txt)) drawBird();
+  else if(/fish|سمكة/.test(txt)) drawFish(); else if(/rocket|صاروخ/.test(txt)) drawRocket();
+  else if(/sun|شمس/.test(txt)) drawSun(); else if(/cloud|سحابة/.test(txt)) drawCloud();
+  else if(/plant|seed|نبات/.test(txt)) drawPlant(); else {
+    g.fillStyle='#222'; g.font='24px system-ui'; g.fillText('Try: cat, dog, bunny, bird, fish, rocket, sun, cloud, plant', 22, 40);
+  }
+};
+function face(cx,cy,r){ g.fillStyle='#ffe9f4'; g.beginPath(); g.arc(cx,cy,r,0,2*Math.PI); g.fill(); }
+function eyes(cx1,cy1,cx2,cy2){ g.fillStyle='#222'; g.beginPath(); g.arc(cx1,cy1,14,0,2*Math.PI); g.fill(); g.beginPath(); g.arc(cx2,cy2,14,0,2*Math.PI); g.fill(); }
+function nose(cx,cy){ g.fillStyle='#ff9ec2'; g.beginPath(); g.arc(cx,cy,12,0,2*Math.PI); g.fill(); }
+function drawCat(){ const cx=board.width/2, cy=board.height/2+20; face(cx,cy,130);
+  g.fillStyle='#ffc6de'; g.beginPath(); g.moveTo(cx-96,cy-130); g.lineTo(cx-48,cy-200); g.lineTo(cx-22,cy-130); g.fill();
+  g.beginPath(); g.moveTo(cx+96,cy-130); g.lineTo(cx+48,cy-200); g.lineTo(cx+22,cy-130); g.fill();
+  eyes(cx-44,cy-10,cx+44,cy-10); nose(cx,cy+24); }
+function drawDog(){ const cx=board.width/2, cy=board.height/2+20; face(cx,cy,130);
+  g.fillStyle='#e6c39d'; g.beginPath(); g.arc(cx-110,cy-60,70,0,2*Math.PI); g.fill(); g.beginPath(); g.arc(cx+110,cy-60,70,0,2*Math.PI); g.fill();
+  eyes(cx-54,cy-10,cx+54,cy-10); nose(cx,cy+26); }
+function drawBunny(){ const cx=board.width/2, cy=board.height/2+20; face(cx,cy,130);
+  g.fillStyle='#ffd6e7'; g.fillRect(cx-60,cy-210,46,130); g.fillRect(cx+14,cy-210,46,130);
+  eyes(cx-44,cy-10,cx+44,cy-10); nose(cx,cy+22); }
+function drawBird(){ const cx=board.width/2, cy=board.height/2; g.fillStyle='#caf0ff';
+  g.beginPath(); g.ellipse(cx,cy,200,130,0,0,2*Math.PI); g.fill();
+  eyes(cx+30,cy-10,cx+70,cy-10); g.fillStyle='#ffd54a'; g.beginPath(); g.moveTo(cx+150,cy); g.lineTo(cx+200,cy+20); g.lineTo(cx+150,cy+40); g.fill(); }
+function drawFish(){ const cx=board.width/2, cy=board.height/2; g.fillStyle='#c8e6ff';
+  g.beginPath(); g.ellipse(cx,cy,240,120,0,0,2*Math.PI); g.fill();
+  g.fillStyle='#a5d8ff'; g.beginPath(); g.moveTo(cx-250,cy); g.lineTo(cx-320,cy-80); g.lineTo(cx-320,cy+80); g.fill();
+  eyes(cx+100,cy-5,cx+140,cy-5); }
+function drawRocket(){ const cx=board.width/2-160, cy=board.height/2+60;
+  g.fillStyle='#0b1020'; g.fillRect(0,0,board.width,board.height);
+  g.fillStyle='#fff'; for(let i=0;i<90;i++){ g.fillRect(Math.random()*board.width,Math.random()*board.height,2,2); }
+  g.save(); g.translate(cx,cy); g.rotate(-Math.PI/7);
+  g.fillStyle='#c7e9ff'; g.fillRect(-80,-34,220,68);
+  g.fillStyle='#ef4444'; g.beginPath(); g.moveTo(140,0); g.lineTo(190,-28); g.lineTo(190,28); g.fill();
+  g.fillStyle='#60a5fa'; g.beginPath(); g.arc(10,0,30,0,2*Math.PI); g.fill();
+  g.fillStyle='#ffd54a'; g.beginPath(); g.moveTo(-80,0); g.lineTo(-120,-18); g.lineTo(-120,18); g.fill(); g.restore(); }
+function drawSun(){ g.fillStyle='#bde0ff'; g.fillRect(0,0,board.width,board.height); g.fillStyle='#ffde59';
+  g.beginPath(); g.arc(220,160,120,0,2*Math.PI); g.fill(); }
+function drawCloud(){ g.fillStyle='#e8f2ff'; g.fillRect(0,0,board.width,board.height); g.fillStyle='#d7e4f5';
+  const cx=board.width/2, cy=board.height/2-40; [ -200,-100,0,100,200 ].forEach((dx,i)=>{ g.beginPath(); g.arc(cx+dx,cy+(i%2? -20:0), i%2?120:150,0,2*Math.PI); g.fill(); }); }
+function drawPlant(){ g.fillStyle='#e9f7ff'; g.fillRect(0,0,board.width,board.height); g.fillStyle='#b57c4a'; g.fillRect(0,board.height*0.75,board.width,board.height*0.25);
+  g.strokeStyle='#4caf50'; g.lineWidth=16; g.beginPath(); g.moveTo(board.width/2,board.height*0.75); g.lineTo(board.width/2,board.height*0.45); g.stroke();
+  g.fillStyle='#7ad957'; g.beginPath(); g.ellipse(board.width/2-60,board.height*0.52,120,40,-.6,0,2*Math.PI); g.fill();
+  g.beginPath(); g.ellipse(board.width/2+60,board.height*0.58,120,40,.6,0,2*Math.PI); g.fill(); }
+
+/* ===== Chat send ===== */
+$('#sendBtn').onclick=async()=>{
+  const q=$('#msg').value.trim(); if(!q) return;
+  addChatKid(q); $('#msg').value='';
+  robotReact();
+
+  // compliment bubble
+  const comp=["Great question!","Nice thinking!","Wow, clever!","Good job!"];
+  addChatDad(comp[Math.floor(Math.random()*comp.length)]);
+
+  const mem=getMemory(); const norm=normalizeQ(q);
+  let ans = mem[norm] || await answerFromAI(q);
+  addChatDad(ans);
+
+  // sync Classic panel with latest
+  $('#question').value = q; $('#answer').textContent = ans; sketchForQuestion(q);
+  saveLog({t:new Date().toLocaleString(), kid:kid?.name||'', mode:'chat', q, ans});
+};
+
+/* ===== init ===== */
+document.addEventListener('DOMContentLoaded', ()=>{
+  if(kid){ addChatDad(`Welcome back, ${kid.name}! 😊`); }
+});
 </script>
 </body>
 </html>
